@@ -43,7 +43,7 @@ export default function ProductDetailScreen({ route, navigation }) {
           <Text style={styles.sectionTitle}>Deskripsi Produk</Text>
           <Text style={styles.description}>{product.deskripsi}</Text>
           
-          <View style={{height: 100}} /> {/* Spacer untuk bottom button */}
+          <View style={{height: 120}} /> {/* Spacer untuk bottom button */}
         </View>
       </ScrollView>
 
@@ -147,13 +147,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 20,
-    backgroundColor: 'rgba(15, 23, 42, 0.9)',
-    borderTopWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
     alignItems: 'center',
-    ...Platform.select({
-      web: { backdropFilter: 'blur(10px)' }
-    })
+    pointerEvents: 'box-none',
   },
   waButton: { 
     flexDirection: 'row',
