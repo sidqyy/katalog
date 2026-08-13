@@ -36,21 +36,57 @@ if (!is_dir('uploads')) {
 
 $pesan = "";
 
-// Fungsi untuk menangani upload gambar
+// Fungsi untuk menangani upload gambar (Otomatis Kompresi ke WebP)
 function uploadGambar($file) {
     if ($file['error'] === 0) {
-        $nama_file = time() . '_' . basename($file["name"]);
-        $target_file = "uploads/" . $nama_file;
-        $imageFileType = strtolower(pathinfo($target_file,PATHINFO_EXTENSION));
+        $nama_file_asli = basename($file["name"]);
+        $imageFileType = strtolower(pathinfo($nama_file_asli, PATHINFO_EXTENSION));
         $valid_extensions = array("jpg", "jpeg", "png", "gif", "webp");
         
         // Memastikan file benar-benar merupakan gambar (Mencegah fake extension / RCE shell)
         $check = getimagesize($file["tmp_name"]);
         if($check !== false && in_array($imageFileType, $valid_extensions)) {
-            if (move_uploaded_file($file["tmp_name"], $target_file)) {
-                // Untuk test di HP (local network) idealnya menggunakan IP address komputer.
-                // Tapi kita simpan relative URL yang dinamis saja.
-                return 'http://' . $_SERVER['HTTP_HOST'] . '/Katalog/' . $target_file;
+            
+            $nama_file_webp = time() . '_' . pathinfo($nama_file_asli, PATHINFO_FILENAME) . '.webp';
+            $target_file = "uploads/" . $nama_file_webp;
+            $mime = $check['mime'];
+            $image = false;
+
+            // Load gambar berdasarkan MIME type
+            if ($mime == 'image/jpeg') {
+                $image = imagecreatefromjpeg($file["tmp_name"]);
+            } elseif ($mime == 'image/png') {
+                $image = imagecreatefrompng($file["tmp_name"]);
+                // Pertahankan transparansi PNG
+                imagepalettetotruecolor($image);
+                imagealphablending($image, true);
+                imagesavealpha($image, true);
+            } elseif ($mime == 'image/gif') {
+                $image = imagecreatefromgif($file["tmp_name"]);
+            } elseif ($mime == 'image/webp') {
+                $image = imagecreatefromwebp($file["tmp_name"]);
+            }
+
+            if ($image !== false) {
+                // Simpan sebagai WEBP dengan Quality 80 (Rasio ideal ukuran kecil & gambar tajam)
+                if (imagewebp($image, $target_file, 80)) {
+                    imagedestroy($image);
+                    
+                    // URL Dinamis untuk cPanel
+                    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https://' : 'http://';
+                    $base_url = rtrim($protocol . $_SERVER['HTTP_HOST'] . dirname($_SERVER['PHP_SELF']), '/\\') . '/';
+                    
+                    return $base_url . $target_file;
+                }
+                imagedestroy($image);
+            }
+            
+            // Fallback: Jika konversi GD gagal, lakukan upload biasa
+            $target_file_fallback = "uploads/" . time() . '_' . $nama_file_asli;
+            if (move_uploaded_file($file["tmp_name"], $target_file_fallback)) {
+                $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https://' : 'http://';
+                $base_url = rtrim($protocol . $_SERVER['HTTP_HOST'] . dirname($_SERVER['PHP_SELF']), '/\\') . '/';
+                return $base_url . $target_file_fallback;
             }
         }
     }
