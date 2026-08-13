@@ -1,9 +1,10 @@
 const BASE_URL = 'http://127.0.0.1/Katalog/api/api_produk.php'; // Sesuaikan IP jika dijalankan di HP fisik
 
-export const fetchProducts = async (search = '', minPrice = '', maxPrice = '') => {
+export const fetchProducts = async (search = '', minPrice = '', maxPrice = '', kategori = '', page = 1, limit = 10) => {
   try {
-    let url = `${BASE_URL}?`;
+    let url = `${BASE_URL}?page=${page}&limit=${limit}&`;
     if (search) url += `search=${encodeURIComponent(search)}&`;
+    if (kategori) url += `kategori=${encodeURIComponent(kategori)}&`;
     if (minPrice) url += `min_price=${minPrice}&`;
     if (maxPrice) url += `max_price=${maxPrice}`;
 

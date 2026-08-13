@@ -15,14 +15,23 @@ if ($conn->connect_error) {
 
 // Menangkap parameter GET
 $search = isset($_GET['search']) ? $conn->real_escape_string($_GET['search']) : '';
+$kategori = isset($_GET['kategori']) ? $conn->real_escape_string($_GET['kategori']) : '';
 $min_price = isset($_GET['min_price']) ? (float)$_GET['min_price'] : 0;
 $max_price = isset($_GET['max_price']) ? (float)$_GET['max_price'] : 0;
+
+// Parameter Paginasi
+$page = isset($_GET['page']) && (int)$_GET['page'] > 0 ? (int)$_GET['page'] : 1;
+$limit = isset($_GET['limit']) && (int)$_GET['limit'] > 0 ? (int)$_GET['limit'] : 10;
+$offset = ($page - 1) * $limit;
 
 // Menyusun Query
 $query = "SELECT id, nama_produk, harga, deskripsi, link_gambar FROM products WHERE 1=1";
 
 if (!empty($search)) {
     $query .= " AND nama_produk LIKE '%$search%'";
+}
+if (!empty($kategori)) {
+    $query .= " AND kategori = '$kategori'";
 }
 if ($min_price > 0) {
     $query .= " AND harga >= $min_price";
@@ -31,7 +40,7 @@ if ($max_price > 0) {
     $query .= " AND harga <= $max_price";
 }
 
-$query .= " ORDER BY id DESC";
+$query .= " ORDER BY id DESC LIMIT $limit OFFSET $offset";
 $result = $conn->query($query);
 
 $products = [];

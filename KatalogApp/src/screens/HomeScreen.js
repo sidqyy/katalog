@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, FlatList, Image, TouchableOpacity, StyleSheet, ActivityIndicator, Linking, Platform, useWindowDimensions } from 'react-native';
+import { View, Text, TextInput, FlatList, Image, TouchableOpacity, StyleSheet, ActivityIndicator, Linking, Platform, useWindowDimensions, ScrollView } from 'react-native';
 import { fetchProducts } from '../api/apiService';
 
 // Untuk tampilan web agar tidak terlalu lebar, kita batasi lebarnya
@@ -15,23 +15,56 @@ export default function HomeScreen({ navigation }) {
   const maxCardWidth = (Math.min(width, MAX_WIDTH) - (paddingHorizontal * 2)) / numCols - 20;
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [search, setSearch] = useState('');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
+  const [kategori, setKategori] = useState('Semua');
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
 
-  const loadData = async () => {
-    setLoading(true);
-    const data = await fetchProducts(search, minPrice, maxPrice);
-    setProducts(data);
+  const categories = ['Semua', 'Sepatu', 'Tas', 'Aksesoris', 'Pakaian'];
+
+  const fetchApiData = async (currentPage, isRefresh = false) => {
+    if (currentPage === 1 && !isRefresh) setLoading(true);
+    else if (isRefresh) setRefreshing(true);
+    else setLoadingMore(true);
+
+    const queryKategori = kategori === 'Semua' ? '' : kategori;
+    const data = await fetchProducts(search, minPrice, maxPrice, queryKategori, currentPage, 10);
+    
+    if (data.length < 10) setHasMore(false);
+    else setHasMore(true);
+
+    if (currentPage === 1) setProducts(data);
+    else setProducts(prev => [...prev, ...data]);
+    
     setLoading(false);
+    setRefreshing(false);
+    setLoadingMore(false);
   };
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      loadData();
+      setPage(1);
+      fetchApiData(1);
     }, 500);
     return () => clearTimeout(timeoutId);
-  }, [search, minPrice, maxPrice]);
+  }, [search, minPrice, maxPrice, kategori]);
+
+  const handleLoadMore = () => {
+    if (!loadingMore && !loading && hasMore) {
+      const nextPage = page + 1;
+      setPage(nextPage);
+      fetchApiData(nextPage);
+    }
+  };
+
+  const onRefresh = () => {
+    setPage(1);
+    fetchApiData(1, true);
+  };
 
   const renderItem = ({ item }) => (
     <TouchableOpacity 
@@ -63,6 +96,21 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.header}>
           <Text style={styles.title}>Katalog Premium</Text>
           <Text style={styles.subtitle}>Temukan koleksi produk terbaik kami</Text>
+        </View>
+
+        {/* Kategori Filter */}
+        <View style={styles.categoryContainer}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
+            {categories.map((cat, index) => (
+              <TouchableOpacity 
+                key={index} 
+                style={[styles.categoryChip, kategori === cat && styles.categoryChipActive]}
+                onPress={() => setKategori(cat)}
+              >
+                <Text style={[styles.categoryChipText, kategori === cat && styles.categoryChipTextActive]}>{cat}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
 
         {/* Filter & Search Bar - Glassmorphism Style */}
@@ -120,6 +168,11 @@ export default function HomeScreen({ navigation }) {
               numColumns={numCols}
               renderItem={renderItem}
               contentContainerStyle={[styles.listContainer, { paddingHorizontal }]}
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              onEndReached={handleLoadMore}
+              onEndReachedThreshold={0.5}
+              ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color="#6366f1" style={{ margin: 20 }} /> : null}
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
                   <Text style={styles.emptyEmoji}>📦</Text>
@@ -174,6 +227,33 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     color: '#94a3b8',
+  },
+  categoryContainer: {
+    marginBottom: 15,
+  },
+  categoryScroll: {
+    paddingHorizontal: 20,
+    gap: 10, // Hanya didukung di versi terbaru, fallback dengan marginRight pada chip jika bermasalah, tapi Expo modern support
+  },
+  categoryChip: {
+    backgroundColor: 'rgba(30, 41, 59, 0.7)',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    marginRight: 10, // Fallback untuk gap
+  },
+  categoryChipActive: {
+    backgroundColor: '#6366f1',
+    borderColor: '#6366f1',
+  },
+  categoryChipText: {
+    color: '#94a3b8',
+    fontWeight: '600',
+  },
+  categoryChipTextActive: {
+    color: '#fff',
   },
   filterContainer: { 
     marginHorizontal: 20,

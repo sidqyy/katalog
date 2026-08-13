@@ -55,6 +55,17 @@ function uploadGambar($file) {
     return "";
 }
 
+// Fungsi untuk menghapus file gambar fisik dari server
+function deleteGambar($url) {
+    if (strpos($url, 'uploads/') !== false) {
+        $filename = basename(parse_url($url, PHP_URL_PATH));
+        $filepath = 'uploads/' . $filename;
+        if (file_exists($filepath) && !is_dir($filepath)) {
+            unlink($filepath);
+        }
+    }
+}
+
 // Menangani Form Submit untuk Tambah / Edit Produk
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['simpan'])) {
     $id_produk = isset($_POST['id_produk']) ? (int)$_POST['id_produk'] : 0;
@@ -70,6 +81,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['simpan'])) {
     if (isset($_FILES['gambar']) && $_FILES['gambar']['error'] === 0) {
         $uploaded = uploadGambar($_FILES['gambar']);
         if ($uploaded != "") {
+            // Hapus gambar lama dari server jika ada
+            if ($link_gambar != "") {
+                deleteGambar($link_gambar);
+            }
             $link_gambar = $uploaded;
         }
     }
@@ -99,6 +114,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['simpan'])) {
 // Menangani Hapus Produk
 if (isset($_GET['hapus'])) {
     $id_hapus = (int)$_GET['hapus'];
+    
+    // Ambil link gambar dan hapus file fisiknya dulu
+    $res = $conn->query("SELECT link_gambar FROM products WHERE id=$id_hapus");
+    if ($res && $res->num_rows > 0) {
+        $row = $res->fetch_assoc();
+        deleteGambar($row['link_gambar']);
+    }
+
     $sql_hapus = "DELETE FROM products WHERE id=$id_hapus";
     if ($conn->query($sql_hapus) === TRUE) {
         header("Location: admin.php"); 
