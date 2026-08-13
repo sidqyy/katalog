@@ -44,7 +44,9 @@ function uploadGambar($file) {
         $imageFileType = strtolower(pathinfo($target_file,PATHINFO_EXTENSION));
         $valid_extensions = array("jpg", "jpeg", "png", "gif", "webp");
         
-        if(in_array($imageFileType, $valid_extensions)) {
+        // Memastikan file benar-benar merupakan gambar (Mencegah fake extension / RCE shell)
+        $check = getimagesize($file["tmp_name"]);
+        if($check !== false && in_array($imageFileType, $valid_extensions)) {
             if (move_uploaded_file($file["tmp_name"], $target_file)) {
                 // Untuk test di HP (local network) idealnya menggunakan IP address komputer.
                 // Tapi kita simpan relative URL yang dinamis saja.
