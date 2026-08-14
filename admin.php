@@ -114,7 +114,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['simpan'])) {
     if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
         die("CSRF token validation failed.");
     }
-    $active_tab = "section-tambah";
+    
     $id_produk = isset($_POST['id_produk']) ? (int)$_POST['id_produk'] : 0;
     $nama = trim($_POST['nama_produk']);
     $kategori = trim($_POST['kategori']);
@@ -133,12 +133,24 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['simpan'])) {
     if ($id_produk > 0) {
         $stmt = $conn->prepare("UPDATE products SET nama_produk=?, kategori=?, harga=?, deskripsi=?, link_gambar=? WHERE id=?");
         $stmt->bind_param("ssdssi", $nama, $kategori, $harga, $deskripsi, $link_gambar, $id_produk);
-        if ($stmt->execute()) { $pesan = "✅ Produk berhasil diperbarui!"; } else { $pesan = "❌ Error: " . $stmt->error; }
+        if ($stmt->execute()) { 
+            $pesan = "✅ Produk berhasil diperbarui!"; 
+            $active_tab = "section-produk";
+        } else { 
+            $pesan = "❌ Error: " . $stmt->error; 
+            $active_tab = "section-tambah";
+        }
         $stmt->close();
     } else {
         $stmt = $conn->prepare("INSERT INTO products (nama_produk, kategori, harga, deskripsi, link_gambar) VALUES (?, ?, ?, ?, ?)");
         $stmt->bind_param("ssdss", $nama, $kategori, $harga, $deskripsi, $link_gambar);
-        if ($stmt->execute()) { $pesan = "✅ Produk baru berhasil ditambahkan!"; } else { $pesan = "❌ Error: " . $stmt->error; }
+        if ($stmt->execute()) { 
+            $pesan = "✅ Produk baru berhasil ditambahkan!"; 
+            $active_tab = "section-produk";
+        } else { 
+            $pesan = "❌ Error: " . $stmt->error; 
+            $active_tab = "section-tambah";
+        }
         $stmt->close();
     }
 }
@@ -362,6 +374,9 @@ $result = $conn->query("SELECT * FROM products ORDER BY id DESC");
                 
                 <!-- Section: Daftar Produk -->
                 <div id="section-produk" class="section <?= $active_tab == 'section-produk' ? 'active' : '' ?>">
+                    <?php if ($pesan != "" && $active_tab == 'section-produk'): ?>
+                        <div class="alert <?= strpos($pesan, '✅') !== false ? 'alert-success' : 'alert-error' ?>"><?= $pesan; ?></div>
+                    <?php endif; ?>
                     <div class="card">
                         <div class="card-header">
                             <h3 class="card-title">📦 Semua Produk</h3>
@@ -417,7 +432,7 @@ $result = $conn->query("SELECT * FROM products ORDER BY id DESC");
                             <h3 class="card-title" id="formTitle">✨ Tambah Produk Baru</h3>
                         </div>
                         
-                        <?php if ($pesan != ""): ?>
+                        <?php if ($pesan != "" && $active_tab == 'section-tambah'): ?>
                             <div class="alert <?= strpos($pesan, '✅') !== false ? 'alert-success' : 'alert-error' ?>"><?= $pesan; ?></div>
                         <?php endif; ?>
 
