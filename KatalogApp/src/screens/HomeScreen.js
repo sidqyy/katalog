@@ -169,6 +169,7 @@ export default function HomeScreen({ navigation }) {
             </View>
           ) : (
             <FlatList
+              style={{ flex: 1, width: '100%' }}
               key={numCols} // Force re-render jika kolom berubah (web)
               data={products}
               keyExtractor={(item) => item.id.toString()}
