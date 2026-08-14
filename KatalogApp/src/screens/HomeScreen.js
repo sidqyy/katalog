@@ -174,12 +174,20 @@ export default function HomeScreen({ navigation }) {
               keyExtractor={(item) => item.id.toString()}
               numColumns={numCols}
               renderItem={renderItem}
-              contentContainerStyle={[styles.listContainer, { paddingHorizontal }]}
+              contentContainerStyle={[styles.listContainer, { paddingHorizontal, flexGrow: 1 }]}
               refreshing={refreshing}
               onRefresh={onRefresh}
               onEndReached={handleLoadMore}
               onEndReachedThreshold={0.5}
-              ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color="#6366f1" style={{ margin: 20 }} /> : null}
+              ListFooterComponent={
+                <View style={styles.footerContainer}>
+                  {loadingMore ? (
+                    <ActivityIndicator size="small" color="#6366f1" />
+                  ) : (
+                    <Text style={styles.footerText}>Katalog Premium © 2026 - All Rights Reserved</Text>
+                  )}
+                </View>
+              }
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
                   <Text style={styles.emptyEmoji}>📦</Text>
@@ -203,6 +211,7 @@ export default function HomeScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 
+    minHeight: '100%',
     backgroundColor: '#0f172a', // Dark theme background
     alignItems: 'center',
   },
@@ -422,5 +431,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.02)', 
     borderRadius: 15, 
     zIndex: 999 
+  },
+  footerContainer: {
+    padding: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 'auto', // Pushes footer to bottom if content is short
+  },
+  footerText: {
+    color: '#64748b',
+    fontSize: 12,
+    fontWeight: '500',
+    letterSpacing: 0.5,
   }
 });
