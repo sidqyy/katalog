@@ -552,11 +552,13 @@ if ($is_logged_in) {
                             </div>
                             <div class="form-group">
                                 <label>Upload Gambar <span style="font-size: 0.8em; color: var(--warning);">(Abaikan jika tidak ingin mengubah gambar)</span></label>
-                                <input type="file" name="gambar" accept="image/*">
+                                <input type="file" name="gambar" accept="image/*" id="inputGambarUpload" onchange="previewUploadImage(event)">
                             </div>
-                            <div class="form-group" id="previewGambarLamaContainer" style="display: none;">
-                                <label>Gambar Lama Saat Ini:</label>
-                                <input type="text" id="displayGambarLama" disabled style="background: rgba(0,0,0,0.2); color: var(--text-muted); cursor: not-allowed;">
+                            
+                            <!-- Container Preview Gambar -->
+                            <div class="form-group" id="previewGambarContainer" style="display: none; text-align: center; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 0.5rem; border: 1px dashed var(--surface-border);">
+                                <label style="margin-bottom: 1rem;">Preview Gambar:</label>
+                                <img id="imagePreview" src="" alt="Preview" style="max-width: 100%; max-height: 250px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
                             </div>
                             <div class="form-group">
                                 <label>Deskripsi Singkat</label>
@@ -700,9 +702,10 @@ if ($is_logged_in) {
             document.getElementById('inputStatus').value = status;
             document.getElementById('inputDeskripsi').value = deskripsi;
             
+            // Atur preview gambar dengan gambar lama yang ada di database
             document.getElementById('inputGambarLama').value = link_gambar;
-            document.getElementById('displayGambarLama').value = link_gambar;
-            document.getElementById('previewGambarLamaContainer').style.display = 'block';
+            document.getElementById('imagePreview').src = link_gambar;
+            document.getElementById('previewGambarContainer').style.display = 'block';
             
             document.getElementById('btnSubmit').innerHTML = 'Update Produk Data';
             document.getElementById('btnCancel').style.display = 'block';
@@ -718,8 +721,11 @@ if ($is_logged_in) {
             document.getElementById('inputStatus').value = '1';
             document.getElementById('inputDeskripsi').value = '';
             document.getElementById('inputGambarLama').value = '';
+            document.getElementById('inputGambarUpload').value = ''; // Reset file input
             
-            document.getElementById('previewGambarLamaContainer').style.display = 'none';
+            document.getElementById('imagePreview').src = '';
+            document.getElementById('previewGambarContainer').style.display = 'none';
+            
             document.getElementById('btnSubmit').innerHTML = 'Simpan Produk';
             document.getElementById('btnCancel').style.display = 'none';
         }
@@ -742,6 +748,23 @@ if ($is_logged_in) {
             });
             
             document.getElementById("noResultRow").style.display = (visibleCount === 0 && rows.length > 0) ? "" : "none";
+        }
+        
+        // Preview Upload File Lokal
+        function previewUploadImage(event) {
+            var input = event.target;
+            var reader = new FileReader();
+            
+            reader.onload = function(){
+                var dataURL = reader.result;
+                var output = document.getElementById('imagePreview');
+                output.src = dataURL;
+                document.getElementById('previewGambarContainer').style.display = 'block';
+            };
+            
+            if (input.files && input.files[0]) {
+                reader.readAsDataURL(input.files[0]);
+            }
         }
         
         // Modal Delete
