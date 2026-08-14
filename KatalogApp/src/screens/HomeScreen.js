@@ -11,8 +11,6 @@ export default function HomeScreen({ navigation }) {
   const numCols = width >= 1024 ? 4 : width >= 768 ? 3 : 2;
   const paddingHorizontal = width >= 768 ? 20 : 10;
   
-  // Kalkulasi lebar pasti kartu agar tidak stretch saat jumlah item kurang dari jumlah kolom
-  const maxCardWidth = (Math.min(width, MAX_WIDTH) - (paddingHorizontal * 2)) / numCols - 20;
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -74,11 +72,12 @@ export default function HomeScreen({ navigation }) {
   };
 
   const renderItem = ({ item }) => (
-    <TouchableOpacity 
-      style={[styles.card, { width: maxCardWidth }]} 
-      activeOpacity={0.8}
-      onPress={() => navigation.navigate('ProductDetail', { product: item })}
-    >
+    <View style={{ width: `${100 / numCols}%`, padding: 8 }}>
+      <TouchableOpacity 
+        style={styles.card} 
+        activeOpacity={0.8}
+        onPress={() => navigation.navigate('ProductDetail', { product: item })}
+      >
       <View style={styles.imageContainer}>
         <Image source={{ uri: item.link_gambar }} style={styles.image} resizeMode="cover" />
         <View style={styles.categoryBadge}>
@@ -89,7 +88,8 @@ export default function HomeScreen({ navigation }) {
         <Text style={styles.name} numberOfLines={2}>{item.nama}</Text>
         <Text style={styles.price}>Rp {item.harga.toLocaleString('id-ID')}</Text>
       </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </View>
   );
 
   return (
@@ -330,11 +330,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   listContainer: { 
-    padding: 10,
+    paddingHorizontal: 2, // Kecilkan padding agar tidak dobel dengan padding wrapper
     paddingBottom: 40,
   },
   card: { 
-    margin: 10,
+    flex: 1,
+    width: '100%',
     backgroundColor: 'rgba(30, 41, 59, 0.8)', 
     borderRadius: 20, 
     overflow: 'hidden',
