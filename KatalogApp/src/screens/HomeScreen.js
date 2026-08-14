@@ -8,10 +8,10 @@ const isWeb = Platform.OS === 'web';
 
 export default function HomeScreen({ navigation }) {
   const { width } = useWindowDimensions();
-  const numCols = width >= 1024 ? 4 : width >= 768 ? 3 : 2;
+  const numCols = width >= 1024 ? 5 : width >= 768 ? 4 : 3;
   const paddingHorizontal = width >= 768 ? 20 : 10;
   
-  // Kalkulasi lebar maksimal kartu agar tidak stretch saat jumlah item kurang dari jumlah kolom
+  // Kalkulasi lebar pasti kartu agar tidak stretch saat jumlah item kurang dari jumlah kolom
   const maxCardWidth = (Math.min(width, MAX_WIDTH) - (paddingHorizontal * 2)) / numCols - 20;
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -75,7 +75,7 @@ export default function HomeScreen({ navigation }) {
 
   const renderItem = ({ item }) => (
     <TouchableOpacity 
-      style={[styles.card, { maxWidth: maxCardWidth }]} 
+      style={[styles.card, { width: maxCardWidth }]} 
       activeOpacity={0.8}
       onPress={() => navigation.navigate('ProductDetail', { product: item })}
     >
@@ -334,10 +334,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   card: { 
-    // Pastikan flex tetap 1, tapi width kita paksa agar di mobile 1 kolom tidak terlalu besar
-    flex: 1, 
     margin: 10,
-    width: '100%',
     backgroundColor: 'rgba(30, 41, 59, 0.8)', 
     borderRadius: 20, 
     overflow: 'hidden',
@@ -380,14 +377,14 @@ const styles = StyleSheet.create({
     padding: 15,
   },
   name: { 
-    fontSize: 14, 
+    fontSize: 13, 
     fontWeight: '600', 
     color: '#e2e8f0', 
-    marginBottom: 6,
-    lineHeight: 20,
+    marginBottom: 4,
+    lineHeight: 18,
   },
   price: { 
-    fontSize: 16, 
+    fontSize: 14, 
     color: '#34d399', 
     fontWeight: '800' 
   },
