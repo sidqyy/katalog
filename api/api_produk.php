@@ -2,16 +2,7 @@
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
 
-// Konfigurasi Database
-$host = "localhost";
-$user = "root";
-$pass = ""; // Sesuaikan dengan password root Laragon Anda (biasanya kosong)
-$db   = "katalog_db";
-
-$conn = new mysqli($host, $user, $pass, $db);
-if ($conn->connect_error) {
-    die(json_encode(["error" => "Koneksi gagal: " . $conn->connect_error]));
-}
+require_once '../config.php';
 
 // Menangkap parameter GET
 $search = isset($_GET['search']) ? $conn->real_escape_string($_GET['search']) : '';
@@ -26,34 +17,55 @@ $offset = ($page - 1) * $limit;
 
 // Menyusun Query
 $query = "SELECT id, nama_produk, harga, deskripsi, link_gambar FROM products WHERE 1=1";
+$params = [];
+$types = "";
 
 if (!empty($search)) {
-    $query .= " AND nama_produk LIKE '%$search%'";
+    $query .= " AND nama_produk LIKE ?";
+    $params[] = "%$search%";
+    $types .= "s";
 }
 if (!empty($kategori)) {
-    $query .= " AND kategori = '$kategori'";
+    $query .= " AND kategori = ?";
+    $params[] = $kategori;
+    $types .= "s";
 }
 if ($min_price > 0) {
-    $query .= " AND harga >= $min_price";
+    $query .= " AND harga >= ?";
+    $params[] = $min_price;
+    $types .= "d";
 }
 if ($max_price > 0) {
-    $query .= " AND harga <= $max_price";
+    $query .= " AND harga <= ?";
+    $params[] = $max_price;
+    $types .= "d";
 }
 
-$query .= " ORDER BY id DESC LIMIT $limit OFFSET $offset";
-$result = $conn->query($query);
+$query .= " ORDER BY id DESC LIMIT ? OFFSET ?";
+$params[] = $limit;
+$params[] = $offset;
+$types .= "ii";
 
 $products = [];
-if ($result->num_rows > 0) {
-    while($row = $result->fetch_assoc()) {
-        $products[] = [
-            "id" => $row["id"],
-            "nama" => $row["nama_produk"],
-            "harga" => (float)$row["harga"],
-            "deskripsi" => $row["deskripsi"],
-            "link_gambar" => $row["link_gambar"]
-        ];
+if ($stmt = $conn->prepare($query)) {
+    if (!empty($params)) {
+        $stmt->bind_param($types, ...$params);
     }
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    if ($result->num_rows > 0) {
+        while($row = $result->fetch_assoc()) {
+            $products[] = [
+                "id" => $row["id"],
+                "nama" => $row["nama_produk"],
+                "harga" => (float)$row["harga"],
+                "deskripsi" => $row["deskripsi"],
+                "link_gambar" => $row["link_gambar"]
+            ];
+        }
+    }
+    $stmt->close();
 }
 
 echo json_encode(["status" => "success", "data" => $products]);

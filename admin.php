@@ -1,5 +1,12 @@
 <?php
 session_start();
+require_once 'config.php';
+
+// Generate CSRF Token if not exists
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+$csrf_token = $_SESSION['csrf_token'];
 
 // Handle Logout
 if (isset($_GET['logout'])) {
@@ -8,26 +15,36 @@ if (isset($_GET['logout'])) {
     exit();
 }
 
-// Handle Login "Magic Button"
-if (isset($_POST['magic_password'])) {
-    if ($_POST['magic_password'] === 'admin123') { 
-        $_SESSION['admin_logged_in'] = true;
+// Handle Login
+if (isset($_POST['username']) && isset($_POST['password'])) {
+    $username = trim($_POST['username']);
+    $password = $_POST['password'];
+    
+    $stmt = $conn->prepare("SELECT id, password_hash FROM admins WHERE username = ?");
+    $stmt->bind_param("s", $username);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    if ($result->num_rows === 1) {
+        $admin = $result->fetch_assoc();
+        if (password_verify($password, $admin['password_hash'])) {
+            $_SESSION['admin_logged_in'] = true;
+            $_SESSION['admin_id'] = $admin['id'];
+            // Regenerate CSRF token on login
+            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+            header("Location: admin.php");
+            exit();
+        } else {
+            $login_error = "Password salah.";
+        }
+    } else {
+        $login_error = "Username tidak ditemukan.";
     }
+    $stmt->close();
 }
 
 // Cek apakah sudah login
 $is_logged_in = isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true;
-
-// Konfigurasi Database
-$host = "localhost";
-$user = "root";
-$pass = ""; 
-$db   = "katalog_db";
-
-$conn = new mysqli($host, $user, $pass, $db);
-if ($conn->connect_error) {
-    die("Koneksi gagal: " . $conn->connect_error);
-}
 
 // Buat folder uploads jika belum ada
 if (!is_dir('uploads')) {
@@ -106,14 +123,19 @@ function deleteGambar($url) {
 
 // Menangani Form Submit untuk Tambah / Edit Produk
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['simpan'])) {
+    // Validasi CSRF Token
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        die("CSRF token validation failed.");
+    }
+
     $id_produk = isset($_POST['id_produk']) ? (int)$_POST['id_produk'] : 0;
-    $nama = $conn->real_escape_string($_POST['nama_produk']);
-    $kategori = $conn->real_escape_string($_POST['kategori']);
+    $nama = trim($_POST['nama_produk']);
+    $kategori = trim($_POST['kategori']);
     $harga = (float)$_POST['harga'];
-    $deskripsi = $conn->real_escape_string($_POST['deskripsi']);
+    $deskripsi = trim($_POST['deskripsi']);
     
     // Default gambar lama
-    $link_gambar = isset($_POST['gambar_lama']) ? $conn->real_escape_string($_POST['gambar_lama']) : '';
+    $link_gambar = isset($_POST['gambar_lama']) ? $_POST['gambar_lama'] : '';
 
     // Jika ada file diupload (Menggantikan URL lama)
     if (isset($_FILES['gambar']) && $_FILES['gambar']['error'] === 0) {
@@ -129,41 +151,52 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['simpan'])) {
 
     if ($id_produk > 0) {
         // UPDATE PRODUK
-        $sql = "UPDATE products SET 
-                nama_produk='$nama', kategori='$kategori', harga=$harga, deskripsi='$deskripsi', link_gambar='$link_gambar' 
-                WHERE id=$id_produk";
-        if ($conn->query($sql) === TRUE) {
+        $stmt = $conn->prepare("UPDATE products SET nama_produk=?, kategori=?, harga=?, deskripsi=?, link_gambar=? WHERE id=?");
+        $stmt->bind_param("ssdssi", $nama, $kategori, $harga, $deskripsi, $link_gambar, $id_produk);
+        if ($stmt->execute()) {
             $pesan = "✅ Produk berhasil diperbarui!";
         } else {
-            $pesan = "❌ Error: " . $conn->error;
+            $pesan = "❌ Error: " . $stmt->error;
         }
+        $stmt->close();
     } else {
         // INSERT PRODUK BARU
-        $sql = "INSERT INTO products (nama_produk, kategori, harga, deskripsi, link_gambar) 
-                VALUES ('$nama', '$kategori', $harga, '$deskripsi', '$link_gambar')";
-        if ($conn->query($sql) === TRUE) {
+        $stmt = $conn->prepare("INSERT INTO products (nama_produk, kategori, harga, deskripsi, link_gambar) VALUES (?, ?, ?, ?, ?)");
+        $stmt->bind_param("ssdss", $nama, $kategori, $harga, $deskripsi, $link_gambar);
+        if ($stmt->execute()) {
             $pesan = "✅ Produk baru berhasil ditambahkan!";
         } else {
-            $pesan = "❌ Error: " . $conn->error;
+            $pesan = "❌ Error: " . $stmt->error;
         }
+        $stmt->close();
     }
 }
 
 // Menangani Hapus Produk
-if (isset($_GET['hapus'])) {
-    $id_hapus = (int)$_GET['hapus'];
-    
-    // Ambil link gambar dan hapus file fisiknya dulu
-    $res = $conn->query("SELECT link_gambar FROM products WHERE id=$id_hapus");
-    if ($res && $res->num_rows > 0) {
-        $row = $res->fetch_assoc();
-        deleteGambar($row['link_gambar']);
-    }
+if (isset($_GET['hapus']) && isset($_GET['csrf_token'])) {
+    if ($_GET['csrf_token'] === $_SESSION['csrf_token']) {
+        $id_hapus = (int)$_GET['hapus'];
+        
+        // Ambil link gambar dan hapus file fisiknya dulu
+        $stmt = $conn->prepare("SELECT link_gambar FROM products WHERE id=?");
+        $stmt->bind_param("i", $id_hapus);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        if ($res && $res->num_rows > 0) {
+            $row = $res->fetch_assoc();
+            deleteGambar($row['link_gambar']);
+        }
+        $stmt->close();
 
-    $sql_hapus = "DELETE FROM products WHERE id=$id_hapus";
-    if ($conn->query($sql_hapus) === TRUE) {
-        header("Location: admin.php"); 
-        exit();
+        $stmt = $conn->prepare("DELETE FROM products WHERE id=?");
+        $stmt->bind_param("i", $id_hapus);
+        if ($stmt->execute()) {
+            header("Location: admin.php"); 
+            exit();
+        }
+        $stmt->close();
+    } else {
+        die("CSRF token validation failed on delete.");
     }
 }
 
@@ -260,11 +293,18 @@ $result = $conn->query("SELECT * FROM products ORDER BY id DESC");
     <div style="display: flex; justify-content: center; align-items: center; min-height: 100vh;">
         <div class="glass-panel" style="width: 100%; max-width: 400px; text-align: center;">
             <h2 style="font-size: 2rem; margin-bottom: 0.5rem;">🔒 Admin Area</h2>
-            <p style="color: var(--text-muted); margin-bottom: 2rem;">Silakan masukkan password untuk melanjutkan</p>
+            <p style="color: var(--text-muted); margin-bottom: 2rem;">Silakan login untuk melanjutkan</p>
+            
+            <?php if (isset($login_error)): ?>
+                <div class="alert" style="background: rgba(239, 68, 68, 0.2); border-color: var(--danger); color: #fca5a5;"><?= htmlspecialchars($login_error) ?></div>
+            <?php endif; ?>
             
             <form method="POST">
                 <div class="form-group">
-                    <input type="password" name="magic_password" required placeholder="Password..." style="text-align: center; font-size: 1.2rem; letter-spacing: 2px;">
+                    <input type="text" name="username" required placeholder="Username" style="text-align: center; font-size: 1.2rem; margin-bottom: 1rem;">
+                </div>
+                <div class="form-group">
+                    <input type="password" name="password" required placeholder="Password" style="text-align: center; font-size: 1.2rem; letter-spacing: 2px;">
                 </div>
                 <button type="submit" class="btn-submit">Login</button>
             </form>
@@ -287,6 +327,7 @@ $result = $conn->query("SELECT * FROM products ORDER BY id DESC");
 
             <!-- Tambahkan enctype="multipart/form-data" untuk upload file -->
             <form action="" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
                 <!-- Input hidden untuk identifikasi apakah ini operasi update atau insert baru -->
                 <input type="hidden" name="id_produk" id="inputId">
                 <input type="hidden" name="gambar_lama" id="inputGambarLama">
@@ -415,7 +456,7 @@ $result = $conn->query("SELECT * FROM products ORDER BY id DESC");
         function showDeleteModal(id) {
             const modal = document.getElementById('deleteModal');
             const confirmBtn = document.getElementById('confirmDeleteBtn');
-            confirmBtn.href = '?hapus=' + id;
+            confirmBtn.href = '?hapus=' + id + '&csrf_token=<?= htmlspecialchars($csrf_token) ?>';
             modal.classList.add('active');
         }
         
