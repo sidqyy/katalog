@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, FlatList, Image, TouchableOpacity, StyleSheet, ActivityIndicator, Linking, Platform, useWindowDimensions, ScrollView } from 'react-native';
-import { fetchProducts } from '../api/apiService';
+import { fetchProducts, fetchCategories } from '../api/apiService';
 
 // Untuk tampilan web agar tidak terlalu lebar, kita batasi lebarnya
 const MAX_WIDTH = 1200;
@@ -23,8 +23,15 @@ export default function HomeScreen({ navigation }) {
   const [kategori, setKategori] = useState('Semua');
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [categories, setCategories] = useState(['Semua']);
 
-  const categories = ['Semua', 'Sepatu', 'Tas', 'Aksesoris', 'Pakaian'];
+  useEffect(() => {
+    const loadCategories = async () => {
+      const fetchedCats = await fetchCategories();
+      setCategories(['Semua', ...fetchedCats]);
+    };
+    loadCategories();
+  }, []);
 
   const fetchApiData = async (currentPage, isRefresh = false) => {
     if (currentPage === 1 && !isRefresh) setLoading(true);

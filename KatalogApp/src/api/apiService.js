@@ -21,3 +21,20 @@ export const fetchProducts = async (search = '', minPrice = '', maxPrice = '', k
     return [];
   }
 };
+
+export const fetchCategories = async () => {
+  try {
+    const url = `${BASE_URL.replace('api_produk.php', 'api_kategori.php')}`;
+    const response = await fetch(url);
+    const json = await response.json();
+    
+    if (json.status === 'success') {
+      return json.data;
+    } else {
+      throw new Error("Gagal mengambil kategori");
+    }
+  } catch (error) {
+    console.error("Fetch Kategori Error: ", error);
+    return [];
+  }
+};

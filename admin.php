@@ -30,7 +30,6 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
         if (password_verify($password, $admin['password_hash'])) {
             $_SESSION['admin_logged_in'] = true;
             $_SESSION['admin_id'] = $admin['id'];
-            // Regenerate CSRF token on login
             $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
             header("Location: admin.php");
             exit();
@@ -43,38 +42,33 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
     $stmt->close();
 }
 
-// Cek apakah sudah login
 $is_logged_in = isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true;
 
-// Buat folder uploads jika belum ada
 if (!is_dir('uploads')) {
     mkdir('uploads', 0777, true);
 }
 
 $pesan = "";
+$pesan_kategori = "";
+$active_tab = "section-produk"; // Default tab
 
-// Fungsi untuk menangani upload gambar (Otomatis Kompresi ke WebP)
 function uploadGambar($file) {
     if ($file['error'] === 0) {
         $nama_file_asli = basename($file["name"]);
         $imageFileType = strtolower(pathinfo($nama_file_asli, PATHINFO_EXTENSION));
         $valid_extensions = array("jpg", "jpeg", "png", "gif", "webp");
         
-        // Memastikan file benar-benar merupakan gambar (Mencegah fake extension / RCE shell)
         $check = getimagesize($file["tmp_name"]);
         if($check !== false && in_array($imageFileType, $valid_extensions)) {
-            
             $nama_file_webp = time() . '_' . pathinfo($nama_file_asli, PATHINFO_FILENAME) . '.webp';
             $target_file = "uploads/" . $nama_file_webp;
             $mime = $check['mime'];
             $image = false;
 
-            // Load gambar berdasarkan MIME type
             if ($mime == 'image/jpeg') {
                 $image = imagecreatefromjpeg($file["tmp_name"]);
             } elseif ($mime == 'image/png') {
                 $image = imagecreatefrompng($file["tmp_name"]);
-                // Pertahankan transparansi PNG
                 imagepalettetotruecolor($image);
                 imagealphablending($image, true);
                 imagesavealpha($image, true);
@@ -85,20 +79,15 @@ function uploadGambar($file) {
             }
 
             if ($image !== false) {
-                // Simpan sebagai WEBP dengan Quality 80 (Rasio ideal ukuran kecil & gambar tajam)
                 if (imagewebp($image, $target_file, 80)) {
                     imagedestroy($image);
-                    
-                    // URL Dinamis untuk cPanel
                     $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https://' : 'http://';
                     $base_url = rtrim($protocol . $_SERVER['HTTP_HOST'] . dirname($_SERVER['PHP_SELF']), '/\\') . '/';
-                    
                     return $base_url . $target_file;
                 }
                 imagedestroy($image);
             }
             
-            // Fallback: Jika konversi GD gagal, lakukan upload biasa
             $target_file_fallback = "uploads/" . time() . '_' . $nama_file_asli;
             if (move_uploaded_file($file["tmp_name"], $target_file_fallback)) {
                 $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https://' : 'http://';
@@ -110,7 +99,6 @@ function uploadGambar($file) {
     return "";
 }
 
-// Fungsi untuk menghapus file gambar fisik dari server
 function deleteGambar($url) {
     if (strpos($url, 'uploads/') !== false) {
         $filename = basename(parse_url($url, PHP_URL_PATH));
@@ -121,63 +109,44 @@ function deleteGambar($url) {
     }
 }
 
-// Menangani Form Submit untuk Tambah / Edit Produk
+// Tambah / Edit Produk
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['simpan'])) {
-    // Validasi CSRF Token
     if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
         die("CSRF token validation failed.");
     }
-
+    $active_tab = "section-tambah";
     $id_produk = isset($_POST['id_produk']) ? (int)$_POST['id_produk'] : 0;
     $nama = trim($_POST['nama_produk']);
     $kategori = trim($_POST['kategori']);
     $harga = (float)$_POST['harga'];
     $deskripsi = trim($_POST['deskripsi']);
-    
-    // Default gambar lama
     $link_gambar = isset($_POST['gambar_lama']) ? $_POST['gambar_lama'] : '';
 
-    // Jika ada file diupload (Menggantikan URL lama)
     if (isset($_FILES['gambar']) && $_FILES['gambar']['error'] === 0) {
         $uploaded = uploadGambar($_FILES['gambar']);
         if ($uploaded != "") {
-            // Hapus gambar lama dari server jika ada
-            if ($link_gambar != "") {
-                deleteGambar($link_gambar);
-            }
+            if ($link_gambar != "") { deleteGambar($link_gambar); }
             $link_gambar = $uploaded;
         }
     }
 
     if ($id_produk > 0) {
-        // UPDATE PRODUK
         $stmt = $conn->prepare("UPDATE products SET nama_produk=?, kategori=?, harga=?, deskripsi=?, link_gambar=? WHERE id=?");
         $stmt->bind_param("ssdssi", $nama, $kategori, $harga, $deskripsi, $link_gambar, $id_produk);
-        if ($stmt->execute()) {
-            $pesan = "✅ Produk berhasil diperbarui!";
-        } else {
-            $pesan = "❌ Error: " . $stmt->error;
-        }
+        if ($stmt->execute()) { $pesan = "✅ Produk berhasil diperbarui!"; } else { $pesan = "❌ Error: " . $stmt->error; }
         $stmt->close();
     } else {
-        // INSERT PRODUK BARU
         $stmt = $conn->prepare("INSERT INTO products (nama_produk, kategori, harga, deskripsi, link_gambar) VALUES (?, ?, ?, ?, ?)");
         $stmt->bind_param("ssdss", $nama, $kategori, $harga, $deskripsi, $link_gambar);
-        if ($stmt->execute()) {
-            $pesan = "✅ Produk baru berhasil ditambahkan!";
-        } else {
-            $pesan = "❌ Error: " . $stmt->error;
-        }
+        if ($stmt->execute()) { $pesan = "✅ Produk baru berhasil ditambahkan!"; } else { $pesan = "❌ Error: " . $stmt->error; }
         $stmt->close();
     }
 }
 
-// Menangani Hapus Produk
+// Hapus Produk
 if (isset($_GET['hapus']) && isset($_GET['csrf_token'])) {
     if ($_GET['csrf_token'] === $_SESSION['csrf_token']) {
         $id_hapus = (int)$_GET['hapus'];
-        
-        // Ambil link gambar dan hapus file fisiknya dulu
         $stmt = $conn->prepare("SELECT link_gambar FROM products WHERE id=?");
         $stmt->bind_param("i", $id_hapus);
         $stmt->execute();
@@ -195,12 +164,57 @@ if (isset($_GET['hapus']) && isset($_GET['csrf_token'])) {
             exit();
         }
         $stmt->close();
-    } else {
-        die("CSRF token validation failed on delete.");
     }
 }
 
-// Mengambil Daftar Produk
+// Tambah Kategori
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['simpan_kategori'])) {
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        die("CSRF token validation failed.");
+    }
+    $active_tab = "section-kategori";
+    $nama_kategori = trim($_POST['nama_kategori']);
+    if ($nama_kategori !== "") {
+        $stmt = $conn->prepare("INSERT IGNORE INTO categories (nama_kategori) VALUES (?)");
+        $stmt->bind_param("s", $nama_kategori);
+        if ($stmt->execute() && $stmt->affected_rows > 0) {
+            $pesan_kategori = "✅ Kategori berhasil ditambahkan!";
+        } else {
+            $pesan_kategori = "❌ Kategori sudah ada atau gagal.";
+        }
+        $stmt->close();
+    }
+}
+
+// Hapus Kategori via POST Dropdown
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['hapus_kategori_btn'])) {
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        die("CSRF token validation failed.");
+    }
+    $active_tab = "section-kategori";
+    $id_kategori = isset($_POST['id_hapus_kategori']) ? (int)$_POST['id_hapus_kategori'] : 0;
+    if ($id_kategori > 0) {
+        $stmt = $conn->prepare("DELETE FROM categories WHERE id=?");
+        $stmt->bind_param("i", $id_kategori);
+        if ($stmt->execute()) {
+            $pesan_kategori = "✅ Kategori berhasil dihapus!";
+        } else {
+            $pesan_kategori = "❌ Gagal menghapus kategori.";
+        }
+        $stmt->close();
+    }
+}
+
+// Fetch Kategori
+$kategori_result = $conn->query("SELECT * FROM categories ORDER BY id ASC");
+$kategori_list = [];
+if ($kategori_result && $kategori_result->num_rows > 0) {
+    while($row = $kategori_result->fetch_assoc()) {
+        $kategori_list[] = $row;
+    }
+}
+
+// Fetch Produk
 $result = $conn->query("SELECT * FROM products ORDER BY id DESC");
 ?>
 <!DOCTYPE html>
@@ -215,7 +229,8 @@ $result = $conn->query("SELECT * FROM products ORDER BY id DESC");
             --primary: #6366f1;
             --primary-hover: #4f46e5;
             --bg-color: #0f172a;
-            --surface: rgba(30, 41, 59, 0.7);
+            --sidebar-bg: #1e293b;
+            --surface: rgba(30, 41, 59, 0.9);
             --surface-border: rgba(255, 255, 255, 0.1);
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
@@ -224,200 +239,326 @@ $result = $conn->query("SELECT * FROM products ORDER BY id DESC");
             --warning: #f59e0b;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Outfit', sans-serif; }
-        body {
-            background: var(--bg-color);
-            background-image: 
-                radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.15), transparent 25%),
-                radial-gradient(circle at 85% 30%, rgba(16, 185, 129, 0.15), transparent 25%);
-            color: var(--text-main);
-            min-height: 100vh;
-        }
-        .container { max-width: 1300px; margin: 0 auto; display: grid; grid-template-columns: 1fr 2fr; gap: 2rem; padding: 0 2rem 2rem 2rem; }
-        @media (max-width: 900px) { .container { grid-template-columns: 1fr; } }
-        .glass-panel {
-            background: var(--surface); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-            border: 1px solid var(--surface-border); border-radius: 1.5rem; padding: 2rem;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-        .glass-panel:hover { transform: translateY(-5px); box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.6); }
-        h2 { font-size: 1.75rem; font-weight: 700; margin-bottom: 1.5rem; background: linear-gradient(135deg, #fff, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        body { background: var(--bg-color); color: var(--text-main); height: 100vh; overflow: hidden; }
+        
+        .login-wrapper { display: flex; justify-content: center; align-items: center; height: 100vh; background-image: radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.15), transparent 50%); }
+        .login-card { background: var(--surface); border: 1px solid var(--surface-border); border-radius: 1.5rem; padding: 2.5rem; width: 100%; max-width: 400px; text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
+        
+        .app-container { display: flex; height: 100vh; }
+        
+        /* Sidebar */
+        .sidebar { width: 260px; background: var(--sidebar-bg); border-right: 1px solid var(--surface-border); display: flex; flex-direction: column; padding: 1.5rem; transition: transform 0.3s ease; }
+        .sidebar-logo { font-size: 1.5rem; font-weight: 800; color: white; margin-bottom: 2rem; display: flex; align-items: center; gap: 10px; }
+        .sidebar-logo span { color: var(--primary); }
+        .menu-list { display: flex; flex-direction: column; gap: 0.5rem; flex: 1; }
+        .menu-item { padding: 0.8rem 1rem; color: var(--text-muted); text-decoration: none; border-radius: 0.5rem; font-weight: 600; display: flex; align-items: center; gap: 10px; cursor: pointer; transition: all 0.3s ease; }
+        .menu-item:hover { background: rgba(99, 102, 241, 0.1); color: var(--text-main); }
+        .menu-item.active { background: var(--primary); color: white; }
+        .menu-item.logout { color: var(--danger); margin-top: auto; }
+        .menu-item.logout:hover { background: rgba(239, 68, 68, 0.1); }
+        
+        /* Main Content */
+        .main-wrapper { flex: 1; display: flex; flex-direction: column; overflow: hidden; background-image: radial-gradient(circle at 80% 20%, rgba(99, 102, 241, 0.05), transparent 40%); }
+        .top-header { height: 70px; background: rgba(30, 41, 59, 0.95); border-bottom: 1px solid var(--surface-border); display: flex; align-items: center; justify-content: space-between; padding: 0 2rem; }
+        .header-title { font-weight: 600; font-size: 1.2rem; }
+        
+        .content-area { flex: 1; overflow-y: auto; padding: 2rem; }
+        .section { display: none; animation: fadeIn 0.3s ease; }
+        .section.active { display: block; }
+        
+        /* Components */
+        .card { background: var(--surface); border: 1px solid var(--surface-border); border-radius: 1rem; padding: 2rem; margin-bottom: 2rem; box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.3); }
+        .card-header { margin-bottom: 1.5rem; border-bottom: 1px solid var(--surface-border); padding-bottom: 1rem; }
+        .card-title { font-size: 1.4rem; font-weight: 700; }
+        
         .form-group { margin-bottom: 1.25rem; }
         label { display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: var(--text-muted); font-weight: 600; }
-        input[type="text"], input[type="number"], input[type="file"], textarea {
-            width: 100%; padding: 0.75rem 1rem; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--surface-border);
-            border-radius: 0.75rem; color: var(--text-main); font-size: 1rem; outline: none; transition: all 0.3s ease;
-        }
-        input:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2); }
+        input[type="text"], input[type="number"], input[type="file"], textarea, select { width: 100%; padding: 0.8rem 1rem; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--surface-border); border-radius: 0.5rem; color: var(--text-main); font-size: 1rem; outline: none; transition: border-color 0.3s; }
+        select option { background: var(--bg-color); color: var(--text-main); }
+        input:focus, textarea:focus, select:focus { border-color: var(--primary); }
         textarea { resize: vertical; min-height: 100px; }
-        button.btn-submit { width: 100%; padding: 1rem; background: linear-gradient(135deg, var(--primary), var(--primary-hover)); color: white; border: none; border-radius: 0.75rem; font-size: 1.1rem; font-weight: 700; cursor: pointer; transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 1px; }
-        button.btn-submit:hover { box-shadow: 0 10px 20px -10px var(--primary); transform: scale(1.02); }
-        button.btn-cancel { width: 100%; padding: 1rem; margin-top: 10px; background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid var(--surface-border); border-radius: 0.75rem; font-size: 1.1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; display: none; }
-        button.btn-cancel:hover { background: rgba(255, 255, 255, 0.2); }
-        .alert { padding: 1rem; border-radius: 0.75rem; margin-bottom: 1.5rem; background: rgba(16, 185, 129, 0.2); border: 1px solid var(--success); color: #34d399; text-align: center; font-weight: 600; animation: fadeIn 0.5s ease; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-        .table-container { overflow-x: auto; }
-        table { width: 100%; border-collapse: separate; border-spacing: 0 0.75rem; }
-        th, td { padding: 1rem; text-align: left; }
-        th { color: var(--text-muted); font-weight: 600; font-size: 0.85rem; text-transform: uppercase; border-bottom: 1px solid var(--surface-border); }
-        tr.row-data { background: rgba(255, 255, 255, 0.03); transition: all 0.3s ease; }
-        tr.row-data:hover { background: rgba(255, 255, 255, 0.08); transform: scale(1.01); }
-        tr.row-data td:first-child { border-top-left-radius: 0.75rem; border-bottom-left-radius: 0.75rem; }
-        tr.row-data td:last-child { border-top-right-radius: 0.75rem; border-bottom-right-radius: 0.75rem; }
-        .img-preview { width: 60px; height: 60px; border-radius: 8px; object-fit: cover; border: 1px solid var(--surface-border); }
-        .action-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-        .btn-action { padding: 0.5rem 1rem; text-decoration: none; border-radius: 0.5rem; font-size: 0.85rem; font-weight: 600; transition: all 0.3s ease; border: 1px solid transparent; cursor: pointer;}
-        .btn-edit { background: rgba(245, 158, 11, 0.1); color: var(--warning); border: 1px solid var(--warning); }
-        .btn-edit:hover { background: var(--warning); color: white; box-shadow: 0 5px 15px -5px var(--warning); }
-        .btn-delete { background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid var(--danger); }
-        .btn-delete:hover { background: var(--danger); color: white; box-shadow: 0 5px 15px -5px var(--danger); }
-        .price-tag { color: #34d399; font-weight: 700; }
         
-        /* Modal Popup Styles */
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(5px); z-index: 1000; display: none; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s ease; }
-        .modal-overlay.active { display: flex; opacity: 1; }
-        .modal-content { background: var(--surface); border: 1px solid var(--surface-border); border-radius: 1.5rem; padding: 2rem; width: 90%; max-width: 400px; text-align: center; transform: scale(0.9); transition: transform 0.3s ease; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
-        .modal-overlay.active .modal-content { transform: scale(1); }
-        .modal-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem; color: var(--text-main); }
-        .modal-text { color: var(--text-muted); margin-bottom: 2rem; font-size: 1rem; }
-        .modal-buttons { display: flex; gap: 1rem; justify-content: center; }
-        .btn-modal { padding: 0.75rem 1.5rem; border-radius: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; border: none; font-size: 1rem; }
-        .btn-modal-cancel { background: rgba(255, 255, 255, 0.1); color: var(--text-main); }
-        .btn-modal-cancel:hover { background: rgba(255, 255, 255, 0.2); }
-        .btn-modal-confirm { background: var(--danger); color: white; }
-        .btn-modal-confirm:hover { background: #dc2626; box-shadow: 0 10px 20px -10px var(--danger); }
+        .btn { padding: 0.8rem 1.5rem; border-radius: 0.5rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; border: none; font-size: 1rem; text-align: center; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); transform: translateY(-2px); box-shadow: 0 5px 15px -5px var(--primary); }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-danger:hover { background: #dc2626; transform: translateY(-2px); box-shadow: 0 5px 15px -5px var(--danger); }
+        .btn-cancel { background: rgba(255, 255, 255, 0.1); color: white; margin-top: 10px; display: none; width: 100%; }
+        
+        .alert { padding: 1rem; border-radius: 0.5rem; margin-bottom: 1.5rem; text-align: center; font-weight: 600; }
+        .alert-success { background: rgba(16, 185, 129, 0.2); border: 1px solid var(--success); color: #34d399; }
+        .alert-error { background: rgba(239, 68, 68, 0.2); border: 1px solid var(--danger); color: #fca5a5; }
+        
+        .table-responsive { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 1rem; text-align: left; border-bottom: 1px solid var(--surface-border); }
+        th { color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; }
+        tbody tr:hover { background: rgba(255, 255, 255, 0.03); }
+        .img-preview { width: 50px; height: 50px; border-radius: 8px; object-fit: cover; }
+        .action-btns { display: flex; gap: 0.5rem; }
+        .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.85rem; border-radius: 0.3rem; }
+        
+        /* Modal Delete */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(5px); z-index: 1000; display: none; justify-content: center; align-items: center; }
+        .modal-overlay.active { display: flex; }
+        .modal-content { background: var(--surface); border: 1px solid var(--surface-border); border-radius: 1rem; padding: 2rem; width: 90%; max-width: 400px; text-align: center; }
+        
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        @media (max-width: 768px) {
+            .app-container { flex-direction: column; }
+            .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--surface-border); padding: 1rem; height: auto; }
+            .menu-list { flex-direction: row; flex-wrap: wrap; }
+            .menu-item { flex: 1; text-align: center; justify-content: center; }
+        }
     </style>
 </head>
 <body>
 
 <?php if (!$is_logged_in): ?>
-    <div style="display: flex; justify-content: center; align-items: center; min-height: 100vh;">
-        <div class="glass-panel" style="width: 100%; max-width: 400px; text-align: center;">
-            <h2 style="font-size: 2rem; margin-bottom: 0.5rem;">🔒 Admin Area</h2>
-            <p style="color: var(--text-muted); margin-bottom: 2rem;">Silakan login untuk melanjutkan</p>
+    <div class="login-wrapper">
+        <div class="login-card">
+            <h2 style="font-size: 2rem; margin-bottom: 0.5rem;">🔒 Admin Login</h2>
+            <p style="color: var(--text-muted); margin-bottom: 2rem;">Silakan masuk ke panel Anda</p>
             
             <?php if (isset($login_error)): ?>
-                <div class="alert" style="background: rgba(239, 68, 68, 0.2); border-color: var(--danger); color: #fca5a5;"><?= htmlspecialchars($login_error) ?></div>
+                <div class="alert alert-error"><?= htmlspecialchars($login_error) ?></div>
             <?php endif; ?>
             
             <form method="POST">
                 <div class="form-group">
-                    <input type="text" name="username" required placeholder="Username" style="text-align: center; font-size: 1.2rem; margin-bottom: 1rem;">
+                    <input type="text" name="username" required placeholder="Username" style="text-align: center; font-size: 1.1rem;">
                 </div>
                 <div class="form-group">
-                    <input type="password" name="password" required placeholder="Password" style="text-align: center; font-size: 1.2rem; letter-spacing: 2px;">
+                    <input type="password" name="password" required placeholder="Password" style="text-align: center; font-size: 1.1rem; letter-spacing: 2px;">
                 </div>
-                <button type="submit" class="btn-submit">Login</button>
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Login</button>
             </form>
         </div>
     </div>
 <?php else: ?>
 
-    <div style="text-align: right; max-width: 1300px; margin: 0 auto; padding: 2rem 2rem 1rem 2rem;">
-        <a href="?logout=1" style="color: var(--danger); text-decoration: none; font-weight: 600; padding: 8px 16px; background: rgba(239, 68, 68, 0.1); border-radius: 8px; transition: 0.3s; border: 1px solid var(--danger);">🔓 Keluar Admin</a>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-logo">📦 <span>Katalog.</span></div>
+            <div class="menu-list">
+                <a class="menu-item <?= $active_tab == 'section-produk' ? 'active' : '' ?>" onclick="switchTab('section-produk')">📋 Daftar Produk</a>
+                <a class="menu-item <?= $active_tab == 'section-tambah' ? 'active' : '' ?>" onclick="switchTab('section-tambah')">✨ Form Produk</a>
+                <a class="menu-item <?= $active_tab == 'section-kategori' ? 'active' : '' ?>" onclick="switchTab('section-kategori')">📁 Kelola Kategori</a>
+                
+                <a href="?logout=1" class="menu-item logout">🔓 Keluar Admin</a>
+            </div>
+        </aside>
+
+        <!-- Main Content Wrapper -->
+        <div class="main-wrapper">
+            <header class="top-header">
+                <div class="header-title" id="topHeaderTitle">Daftar Produk</div>
+                <div>Selamat datang, <strong>Admin</strong></div>
+            </header>
+            
+            <main class="content-area">
+                
+                <!-- Section: Daftar Produk -->
+                <div id="section-produk" class="section <?= $active_tab == 'section-produk' ? 'active' : '' ?>">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">📦 Semua Produk</h3>
+                        </div>
+                        <div class="table-responsive">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Gambar</th>
+                                        <th>Detail Produk</th>
+                                        <th>Harga</th>
+                                        <th>Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php if ($result->num_rows > 0): ?>
+                                        <?php while($row = $result->fetch_assoc()): ?>
+                                            <tr>
+                                                <td><img src="<?= htmlspecialchars($row['link_gambar']) ?>" alt="img" class="img-preview" onerror="this.src='https://via.placeholder.com/60'"></td>
+                                                <td>
+                                                    <strong><?= htmlspecialchars($row['nama_produk']) ?></strong><br>
+                                                    <span style="color: var(--text-muted); font-size: 0.85rem;"><?= htmlspecialchars($row['kategori']) ?></span>
+                                                </td>
+                                                <td style="color: var(--success); font-weight: 600;">Rp <?= number_format($row['harga'], 0, ',', '.') ?></td>
+                                                <td>
+                                                    <div class="action-btns">
+                                                        <button class="btn btn-sm btn-primary" style="background: rgba(99, 102, 241, 0.2); color: #818cf8;" onclick="editProduct(
+                                                            <?= $row['id'] ?>, 
+                                                            '<?= htmlspecialchars(addslashes($row['nama_produk'])) ?>', 
+                                                            '<?= htmlspecialchars(addslashes($row['kategori'])) ?>', 
+                                                            <?= $row['harga'] ?>, 
+                                                            '<?= htmlspecialchars(addslashes(preg_replace("/\r|\n/", "\\n", $row['deskripsi']))) ?>',
+                                                            '<?= htmlspecialchars(addslashes($row['link_gambar'])) ?>'
+                                                        )">Edit</button>
+                                                        <button class="btn btn-sm btn-danger" style="background: rgba(239, 68, 68, 0.2); color: #fca5a5;" onclick="showDeleteModal(<?= $row['id'] ?>)">Hapus</button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        <?php endwhile; ?>
+                                    <?php else: ?>
+                                        <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Belum ada produk tersimpan.</td></tr>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section: Tambah/Edit Produk -->
+                <div id="section-tambah" class="section <?= $active_tab == 'section-tambah' ? 'active' : '' ?>">
+                    <div class="card" style="max-width: 800px;">
+                        <div class="card-header">
+                            <h3 class="card-title" id="formTitle">✨ Tambah Produk Baru</h3>
+                        </div>
+                        
+                        <?php if ($pesan != ""): ?>
+                            <div class="alert <?= strpos($pesan, '✅') !== false ? 'alert-success' : 'alert-error' ?>"><?= $pesan; ?></div>
+                        <?php endif; ?>
+
+                        <form action="" method="POST" enctype="multipart/form-data">
+                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+                            <input type="hidden" name="id_produk" id="inputId">
+                            <input type="hidden" name="gambar_lama" id="inputGambarLama">
+
+                            <div class="form-group">
+                                <label>Nama Produk</label>
+                                <input type="text" name="nama_produk" id="inputNama" required placeholder="Mis: Jaket Parasut">
+                            </div>
+                            <div class="form-group">
+                                <label>Kategori</label>
+                                <select name="kategori" id="inputKategori" required style="cursor: pointer; appearance: none;">
+                                    <option value="" disabled selected>Pilih Kategori</option>
+                                    <?php foreach($kategori_list as $kat): ?>
+                                        <option value="<?= htmlspecialchars($kat['nama_kategori']) ?>"><?= htmlspecialchars($kat['nama_kategori']) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Harga (Rp)</label>
+                                <input type="number" name="harga" id="inputHarga" required placeholder="Mis: 150000">
+                            </div>
+                            <div class="form-group">
+                                <label>Upload Gambar <span style="font-size: 0.8em; color: var(--warning);">(Abaikan jika tidak ingin mengubah gambar)</span></label>
+                                <input type="file" name="gambar" accept="image/*">
+                            </div>
+                            <div class="form-group" id="previewGambarLamaContainer" style="display: none;">
+                                <label>Gambar Lama Saat Ini:</label>
+                                <input type="text" id="displayGambarLama" disabled style="background: rgba(0,0,0,0.2); color: var(--text-muted); cursor: not-allowed;">
+                            </div>
+                            <div class="form-group">
+                                <label>Deskripsi Singkat</label>
+                                <textarea name="deskripsi" id="inputDeskripsi" required placeholder="Deskripsi produk..."></textarea>
+                            </div>
+                            
+                            <button type="submit" name="simpan" class="btn btn-primary" id="btnSubmit" style="width: 100%;">Simpan Produk</button>
+                            <button type="button" class="btn btn-cancel" id="btnCancel" onclick="resetForm()">Batal Edit (Buat Baru)</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Section: Kelola Kategori -->
+                <div id="section-kategori" class="section <?= $active_tab == 'section-kategori' ? 'active' : '' ?>">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                        
+                        <!-- Form Tambah Kategori -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">➕ Tambah Kategori Baru</h3>
+                            </div>
+                            
+                            <?php if (isset($pesan_kategori) && strpos($pesan_kategori, 'ditambahkan') !== false): ?>
+                                <div class="alert alert-success"><?= $pesan_kategori; ?></div>
+                            <?php endif; ?>
+                            
+                            <form method="POST">
+                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+                                <div class="form-group">
+                                    <label>Nama Kategori Baru</label>
+                                    <input type="text" name="nama_kategori" required placeholder="Mis: Elektronik">
+                                </div>
+                                <button type="submit" name="simpan_kategori" class="btn btn-primary" style="width: 100%;">Tambah Kategori</button>
+                            </form>
+                        </div>
+                        
+                        <!-- Form Hapus Kategori -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">🗑️ Hapus Kategori</h3>
+                            </div>
+                            
+                            <?php if (isset($pesan_kategori) && strpos($pesan_kategori, 'dihapus') !== false): ?>
+                                <div class="alert alert-success"><?= $pesan_kategori; ?></div>
+                            <?php endif; ?>
+                            <?php if (isset($pesan_kategori) && strpos($pesan_kategori, 'Gagal') !== false): ?>
+                                <div class="alert alert-error"><?= $pesan_kategori; ?></div>
+                            <?php endif; ?>
+                            
+                            <form method="POST" onsubmit="return confirm('Yakin ingin menghapus kategori ini secara permanen?')">
+                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+                                <div class="form-group">
+                                    <label>Pilih Kategori yang Ingin Dihapus</label>
+                                    <select name="id_hapus_kategori" required style="cursor: pointer; appearance: none;">
+                                        <option value="" disabled selected>Pilih Kategori...</option>
+                                        <?php foreach($kategori_list as $kat): ?>
+                                            <option value="<?= htmlspecialchars($kat['id']) ?>"><?= htmlspecialchars($kat['nama_kategori']) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <button type="submit" name="hapus_kategori_btn" class="btn btn-danger" style="width: 100%;">Hapus Kategori</button>
+                            </form>
+                        </div>
+                        
+                    </div>
+                </div>
+
+            </main>
+        </div>
     </div>
 
-    <div class="container">
-        <!-- Form Tambah/Edit Produk -->
-        <div class="glass-panel" id="formPanel">
-            <h2 id="formTitle">✨ Tambah Produk Baru</h2>
-            
-            <?php if ($pesan != ""): ?>
-                <div class="alert"><?= $pesan; ?></div>
-            <?php endif; ?>
-
-            <!-- Tambahkan enctype="multipart/form-data" untuk upload file -->
-            <form action="" method="POST" enctype="multipart/form-data">
-                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
-                <!-- Input hidden untuk identifikasi apakah ini operasi update atau insert baru -->
-                <input type="hidden" name="id_produk" id="inputId">
-                <input type="hidden" name="gambar_lama" id="inputGambarLama">
-
-                <div class="form-group">
-                    <label>Nama Produk</label>
-                    <input type="text" name="nama_produk" id="inputNama" required placeholder="Mis: Jaket Parasut">
-                </div>
-                <div class="form-group">
-                    <label>Kategori</label>
-                    <input type="text" name="kategori" id="inputKategori" required placeholder="Mis: Pakaian">
-                </div>
-                <div class="form-group">
-                    <label>Harga (Rp)</label>
-                    <input type="number" name="harga" id="inputHarga" required placeholder="Mis: 150000">
-                </div>
-                <div class="form-group">
-                    <label>Upload Gambar Baru <span style="font-size: 0.8em; color: var(--warning);" id="textGambarOpsional">(Opsional jika hanya edit data)</span></label>
-                    <input type="file" name="gambar" accept="image/*">
-                </div>
-                <div class="form-group">
-                    <label>Atau Gunakan Link Gambar Lama</label>
-                    <input type="text" id="displayGambarLama" disabled style="background: rgba(0,0,0,0.2); color: var(--text-muted); font-size: 0.85em; cursor: not-allowed;" placeholder="Tidak ada gambar lama">
-                </div>
-                <div class="form-group">
-                    <label>Deskripsi Singkat</label>
-                    <textarea name="deskripsi" id="inputDeskripsi" required placeholder="Tuliskan deksripsi produk yang menarik..."></textarea>
-                </div>
-                <button type="submit" name="simpan" class="btn-submit" id="btnSubmit">Simpan Produk</button>
-                <button type="button" class="btn-cancel" id="btnCancel" onclick="resetForm()">Batal Edit</button>
-            </form>
-        </div>
-
-        <!-- Daftar Produk -->
-        <div class="glass-panel">
-            <h2>📦 Daftar Produk Saat Ini</h2>
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Preview</th>
-                            <th>Info Produk</th>
-                            <th>Harga</th>
-                            <th>Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php if ($result->num_rows > 0): ?>
-                            <?php while($row = $result->fetch_assoc()): ?>
-                                <tr class="row-data">
-                                    <td>
-                                        <img src="<?= htmlspecialchars($row['link_gambar']) ?>" alt="img" class="img-preview" onerror="this.src='https://via.placeholder.com/60'">
-                                    </td>
-                                    <td>
-                                        <strong><?= htmlspecialchars($row['nama_produk']) ?></strong><br>
-                                        <span style="font-size: 0.8rem; color: var(--text-muted);"><?= htmlspecialchars($row['kategori']) ?></span>
-                                    </td>
-                                    <td>
-                                        <span class="price-tag">Rp <?= number_format($row['harga'], 0, ',', '.') ?></span>
-                                    </td>
-                                    <td>
-                                        <div class="action-buttons">
-                                            <!-- Tombol Edit memicu JavaScript -->
-                                            <button type="button" class="btn-action btn-edit" onclick="editProduct(
-                                                <?= $row['id'] ?>, 
-                                                '<?= htmlspecialchars(addslashes($row['nama_produk'])) ?>', 
-                                                '<?= htmlspecialchars(addslashes($row['kategori'])) ?>', 
-                                                <?= $row['harga'] ?>, 
-                                                '<?= htmlspecialchars(addslashes(preg_replace("/\r|\n/", "\\n", $row['deskripsi']))) ?>',
-                                                '<?= htmlspecialchars(addslashes($row['link_gambar'])) ?>'
-                                            )">Edit</button>
-                                            
-                                            <button type="button" class="btn-action btn-delete" onclick="showDeleteModal(<?= $row['id'] ?>)">Hapus</button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            <?php endwhile; ?>
-                        <?php else: ?>
-                            <tr>
-                                <td colspan="4" style="text-align: center; color: var(--text-muted);">Belum ada produk.</td>
-                            </tr>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
+    <!-- Modal Konfirmasi Hapus Produk -->
+    <div class="modal-overlay" id="deleteModal">
+        <div class="modal-content">
+            <h3 style="margin-bottom: 1rem; color: var(--text-main);">⚠️ Konfirmasi Hapus</h3>
+            <p style="color: var(--text-muted); margin-bottom: 2rem;">Apakah Anda yakin ingin menghapus produk ini? Aksi ini tidak dapat dibatalkan.</p>
+            <div style="display: flex; gap: 1rem; justify-content: center;">
+                <button class="btn" style="background: rgba(255,255,255,0.1); color: white;" onclick="closeDeleteModal()">Batal</button>
+                <a href="#" class="btn btn-danger" id="confirmDeleteBtn" style="text-decoration: none;">Ya, Hapus!</a>
             </div>
         </div>
     </div>
 
     <script>
+        // Fungsi Navigasi Tab / Sidebar
+        function switchTab(tabId) {
+            document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
+            document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
+            
+            document.getElementById(tabId).classList.add('active');
+            document.querySelector(`[onclick="switchTab('${tabId}')"]`).classList.add('active');
+            
+            // Ubah Title Header
+            let titles = {
+                'section-produk': 'Daftar Produk',
+                'section-tambah': 'Manajemen Form Produk',
+                'section-kategori': 'Kelola Kategori'
+            };
+            document.getElementById('topHeaderTitle').innerText = titles[tabId];
+        }
+        
+        // Panggil untuk inisialisasi judul tab aktif
+        let initialTab = document.querySelector('.section.active').id;
+        switchTab(initialTab);
+
+        // Edit Produk Logic
         function editProduct(id, nama, kategori, harga, deskripsi, link_gambar) {
+            switchTab('section-tambah'); // Pindah ke tab form
+            
             document.getElementById('formTitle').innerHTML = '✏️ Edit Produk';
             document.getElementById('inputId').value = id;
             document.getElementById('inputNama').value = nama;
@@ -425,19 +566,15 @@ $result = $conn->query("SELECT * FROM products ORDER BY id DESC");
             document.getElementById('inputHarga').value = harga;
             document.getElementById('inputDeskripsi').value = deskripsi;
             
-            // Simpan link gambar lama, agar tidak tertimpa kosong jika user tidak upload file baru
             document.getElementById('inputGambarLama').value = link_gambar;
             document.getElementById('displayGambarLama').value = link_gambar;
+            document.getElementById('previewGambarLamaContainer').style.display = 'block';
             
-            // Ubah tombol submit jadi Update
-            document.getElementById('btnSubmit').innerHTML = 'Update Produk';
+            document.getElementById('btnSubmit').innerHTML = 'Update Produk Data';
             document.getElementById('btnCancel').style.display = 'block';
-            
-            // Scroll layar ke arah form
-            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // Fungsi untuk mereset form kembali ke mode Tambah Produk Baru
+        // Reset Form Logic
         function resetForm() {
             document.getElementById('formTitle').innerHTML = '✨ Tambah Produk Baru';
             document.getElementById('inputId').value = '';
@@ -446,37 +583,22 @@ $result = $conn->query("SELECT * FROM products ORDER BY id DESC");
             document.getElementById('inputHarga').value = '';
             document.getElementById('inputDeskripsi').value = '';
             document.getElementById('inputGambarLama').value = '';
-            document.getElementById('displayGambarLama').value = '';
             
+            document.getElementById('previewGambarLamaContainer').style.display = 'none';
             document.getElementById('btnSubmit').innerHTML = 'Simpan Produk';
             document.getElementById('btnCancel').style.display = 'none';
         }
         
         // Modal Delete Logic
         function showDeleteModal(id) {
-            const modal = document.getElementById('deleteModal');
             const confirmBtn = document.getElementById('confirmDeleteBtn');
             confirmBtn.href = '?hapus=' + id + '&csrf_token=<?= htmlspecialchars($csrf_token) ?>';
-            modal.classList.add('active');
+            document.getElementById('deleteModal').classList.add('active');
         }
-        
         function closeDeleteModal() {
             document.getElementById('deleteModal').classList.remove('active');
         }
     </script>
-
-    <!-- Modal Konfirmasi Hapus -->
-    <div class="modal-overlay" id="deleteModal">
-        <div class="modal-content">
-            <div class="modal-title">⚠️ Konfirmasi Hapus</div>
-            <div class="modal-text">Apakah Anda yakin ingin menghapus produk ini secara permanen? Data tidak dapat dikembalikan.</div>
-            <div class="modal-buttons">
-                <button class="btn-modal btn-modal-cancel" onclick="closeDeleteModal()">Batal</button>
-                <a href="#" class="btn-modal btn-modal-confirm" id="confirmDeleteBtn" style="text-decoration: none;">Ya, Hapus!</a>
-            </div>
-        </div>
-    </div>
-
 <?php endif; ?>
 </body>
 </html>
