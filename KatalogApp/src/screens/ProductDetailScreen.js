@@ -1,11 +1,28 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, Linking, Platform } from 'react-native';
+import { fetchSettings } from '../api/apiService';
 
 export default function ProductDetailScreen({ route, navigation }) {
   const { product } = route.params;
 
-  const handleOrderWhatsApp = () => {
-    const phoneNumber = "6281234567890";
+  const [waSettings, setWaSettings] = useState({
+    wa1_name: 'Poppy Florist',
+    wa1_number: '6281234567890',
+    wa2_name: 'JSFlorist',
+    wa2_number: '6289876543210'
+  });
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      const settings = await fetchSettings();
+      if (settings) {
+        setWaSettings(settings);
+      }
+    };
+    loadSettings();
+  }, []);
+
+  const handleOrderWhatsApp = (phoneNumber) => {
     const message = `Halo Admin, saya tertarik untuk memesan produk ini:\n\nNama Produk: ${product.nama}\nHarga: Rp ${product.harga.toLocaleString('id-ID')}\n\nApakah barang ini masih tersedia?`;
     const url = `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`;
     
@@ -49,10 +66,17 @@ export default function ProductDetailScreen({ route, navigation }) {
 
       {/* Floating Action Button for WhatsApp */}
       <View style={styles.floatingButtonContainer}>
-        <TouchableOpacity style={styles.waButton} activeOpacity={0.9} onPress={handleOrderWhatsApp}>
-          <Text style={styles.waIcon}>💬</Text>
-          <Text style={styles.waButtonText}>Pesan via WhatsApp</Text>
-        </TouchableOpacity>
+        <View style={styles.buttonRow}>
+          <TouchableOpacity style={[styles.waButton, { flex: 1 }]} activeOpacity={0.9} onPress={() => handleOrderWhatsApp(waSettings.wa1_number)}>
+            <Text style={styles.waIcon}>💬</Text>
+            <Text style={styles.waButtonText}>Pesan via {waSettings.wa1_name}</Text>
+          </TouchableOpacity>
+          <View style={{ width: 10 }} />
+          <TouchableOpacity style={[styles.waButton, { flex: 1, backgroundColor: '#0ea5e9', shadowColor: '#0ea5e9' }]} activeOpacity={0.9} onPress={() => handleOrderWhatsApp(waSettings.wa2_number)}>
+            <Text style={styles.waIcon}>💬</Text>
+            <Text style={styles.waButtonText}>Pesan via {waSettings.wa2_name}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -146,20 +170,24 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 20,
+    padding: 15,
     alignItems: 'center',
     pointerEvents: 'box-none',
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    width: '100%',
+    maxWidth: 600,
+    justifyContent: 'space-between',
   },
   waButton: { 
     flexDirection: 'row',
     backgroundColor: '#10b981', 
-    paddingVertical: 16, 
-    paddingHorizontal: 30,
+    paddingVertical: 14, 
+    paddingHorizontal: 10,
     borderRadius: 100, 
     alignItems: 'center',
     justifyContent: 'center',
-    width: '100%',
-    maxWidth: 400,
     ...Platform.select({
       ios: { shadowColor: '#10b981', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.4, shadowRadius: 15 },
       android: { elevation: 8 },
@@ -167,12 +195,12 @@ const styles = StyleSheet.create({
     }),
   },
   waIcon: {
-    fontSize: 20,
-    marginRight: 10,
+    fontSize: 18,
+    marginRight: 6,
   },
   waButtonText: { 
     color: '#fff', 
-    fontSize: 18, 
+    fontSize: 13, 
     fontWeight: 'bold',
     letterSpacing: 0.5,
   }

@@ -245,10 +245,39 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['ubah_password']) && $a
 
 // Fetch Admin List (Hanya untuk Superadmin)
 $admin_list = [];
+$settings_row = null;
 if ($is_logged_in && $admin_role === 'superadmin') {
     $admin_res = $conn->query("SELECT id, username, role FROM admins ORDER BY id ASC");
     if ($admin_res && $admin_res->num_rows > 0) {
         while($r = $admin_res->fetch_assoc()) { $admin_list[] = $r; }
+    }
+    
+    // Fetch Settings WA
+    $settings_res = $conn->query("SELECT * FROM settings WHERE id = 1");
+    if ($settings_res && $settings_res->num_rows > 0) {
+        $settings_row = $settings_res->fetch_assoc();
+    }
+    
+    // Update WhatsApp Settings
+    if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['simpan_wa'])) {
+        if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) { die("CSRF token validation failed."); }
+        $active_tab = "section-pengaturan";
+        $wa1_name = trim($_POST['wa1_name']);
+        $wa1_number = trim($_POST['wa1_number']);
+        $wa2_name = trim($_POST['wa2_name']);
+        $wa2_number = trim($_POST['wa2_number']);
+
+        $stmt = $conn->prepare("UPDATE settings SET wa1_name=?, wa1_number=?, wa2_name=?, wa2_number=? WHERE id=1");
+        $stmt->bind_param("ssss", $wa1_name, $wa1_number, $wa2_name, $wa2_number);
+        if ($stmt->execute()) { 
+            $pesan_pass = "✅ Pengaturan WhatsApp berhasil disimpan!"; 
+            // Re-fetch to update view
+            $settings_res = $conn->query("SELECT * FROM settings WHERE id = 1");
+            $settings_row = $settings_res->fetch_assoc();
+        } else {
+            $pesan_pass = "❌ Gagal menyimpan pengaturan WA.";
+        }
+        $stmt->close();
     }
 }
 
@@ -619,36 +648,68 @@ if ($is_logged_in) {
                 <?php if($admin_role === 'superadmin'): ?>
                 <!-- Section: Pengaturan Akun -->
                 <div id="section-pengaturan" class="section <?= $active_tab == 'section-pengaturan' ? 'active' : '' ?>">
-                    <div class="card" style="max-width: 500px;">
-                        <div class="card-header"><h3 class="card-title">⚙️ Manajemen Akses & Password</h3></div>
-                        <?php if ($pesan_pass != ""): ?>
-                            <div class="alert <?= strpos($pesan_pass, '✅') !== false ? 'alert-success' : 'alert-error' ?>"><?= $pesan_pass; ?></div>
-                        <?php endif; ?>
-                        <form method="POST">
-                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
-                            <div class="form-group">
-                                <label>Pilih Akun yang Akan Diubah</label>
-                                <select name="target_admin_id" required style="cursor: pointer; appearance: none;">
-                                    <?php foreach($admin_list as $adm): ?>
-                                        <option value="<?= $adm['id'] ?>">Username: <?= htmlspecialchars($adm['username']) ?> (<?= htmlspecialchars($adm['role']) ?>)</option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-                            <hr style="border: 1px solid var(--surface-border); margin: 1.5rem 0;">
-                            <div class="form-group">
-                                <label>Password Anda (Superadmin) Saat Ini</label>
-                                <input type="password" name="password_lama" required placeholder="Untuk verifikasi keamanan">
-                            </div>
-                            <div class="form-group">
-                                <label>Password Baru untuk Akun Terpilih</label>
-                                <input type="password" name="password_baru" required>
-                            </div>
-                            <div class="form-group">
-                                <label>Konfirmasi Password Baru</label>
-                                <input type="password" name="konfirmasi_password" required>
-                            </div>
-                            <button type="submit" name="ubah_password" class="btn btn-warning" style="width: 100%; background: var(--warning); color: white; border: none;">Simpan Password Baru</button>
-                        </form>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 2rem;">
+                        
+                        <div class="card">
+                            <div class="card-header"><h3 class="card-title">⚙️ Manajemen Akses & Password</h3></div>
+                            <?php if ($pesan_pass != "" && strpos($pesan_pass, 'Password') !== false): ?>
+                                <div class="alert <?= strpos($pesan_pass, '✅') !== false ? 'alert-success' : 'alert-error' ?>"><?= $pesan_pass; ?></div>
+                            <?php endif; ?>
+                            <form method="POST">
+                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+                                <div class="form-group">
+                                    <label>Pilih Akun yang Akan Diubah</label>
+                                    <select name="target_admin_id" required style="cursor: pointer; appearance: none;">
+                                        <?php foreach($admin_list as $adm): ?>
+                                            <option value="<?= $adm['id'] ?>">Username: <?= htmlspecialchars($adm['username']) ?> (<?= htmlspecialchars($adm['role']) ?>)</option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <hr style="border: 1px solid var(--surface-border); margin: 1.5rem 0;">
+                                <div class="form-group">
+                                    <label>Password Anda (Superadmin) Saat Ini</label>
+                                    <input type="password" name="password_lama" required placeholder="Untuk verifikasi keamanan">
+                                </div>
+                                <div class="form-group">
+                                    <label>Password Baru untuk Akun Terpilih</label>
+                                    <input type="password" name="password_baru" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Konfirmasi Password Baru</label>
+                                    <input type="password" name="konfirmasi_password" required>
+                                </div>
+                                <button type="submit" name="ubah_password" class="btn btn-warning" style="width: 100%; background: var(--warning); color: white; border: none;">Simpan Password Baru</button>
+                            </form>
+                        </div>
+                        
+                        <div class="card">
+                            <div class="card-header"><h3 class="card-title">💬 Konfigurasi WhatsApp Toko</h3></div>
+                            <?php if ($pesan_pass != "" && strpos($pesan_pass, 'WhatsApp') !== false): ?>
+                                <div class="alert <?= strpos($pesan_pass, '✅') !== false ? 'alert-success' : 'alert-error' ?>"><?= $pesan_pass; ?></div>
+                            <?php endif; ?>
+                            <form method="POST">
+                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+                                <div class="form-group">
+                                    <label>Nama Kontak 1 (Mis: Poppy Florist)</label>
+                                    <input type="text" name="wa1_name" value="<?= htmlspecialchars($settings_row['wa1_name'] ?? '') ?>" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Nomor WA 1 (Gunakan awalan 62)</label>
+                                    <input type="text" name="wa1_number" value="<?= htmlspecialchars($settings_row['wa1_number'] ?? '') ?>" placeholder="62812345..." required>
+                                </div>
+                                <hr style="border: 1px dashed var(--surface-border); margin: 1.5rem 0;">
+                                <div class="form-group">
+                                    <label>Nama Kontak 2 (Mis: JSFlorist)</label>
+                                    <input type="text" name="wa2_name" value="<?= htmlspecialchars($settings_row['wa2_name'] ?? '') ?>" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Nomor WA 2 (Gunakan awalan 62)</label>
+                                    <input type="text" name="wa2_number" value="<?= htmlspecialchars($settings_row['wa2_number'] ?? '') ?>" placeholder="62898765..." required>
+                                </div>
+                                <button type="submit" name="simpan_wa" class="btn btn-primary" style="width: 100%;">Simpan Konfigurasi WA</button>
+                            </form>
+                        </div>
+
                     </div>
                 </div>
                 <?php endif; ?>

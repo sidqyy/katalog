@@ -38,3 +38,20 @@ export const fetchCategories = async () => {
     return [];
   }
 };
+
+export const fetchSettings = async () => {
+  try {
+    const url = `${BASE_URL.replace('api_produk.php', 'api_settings.php')}`;
+    const response = await fetch(url);
+    const json = await response.json();
+    
+    if (json.status === 'success') {
+      return json.data;
+    } else {
+      throw new Error("Gagal mengambil settings");
+    }
+  } catch (error) {
+    console.error("Fetch Settings Error: ", error);
+    return null;
+  }
+};

@@ -1,0 +1,11 @@
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Opsional: Jika ingin memaksa HTTPS di hosting cPanel nanti, 
+  # hilangkan tanda '#' pada 2 baris di bawah ini:
+  
+  # RewriteCond %{HTTPS} off
+  # RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+</IfModule>
