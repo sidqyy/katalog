@@ -20,7 +20,7 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
     $username = trim($_POST['username']);
     $password = $_POST['password'];
     
-    $stmt = $conn->prepare("SELECT id, password_hash FROM admins WHERE username = ?");
+    $stmt = $conn->prepare("SELECT id, password_hash, role FROM admins WHERE username = ?");
     $stmt->bind_param("s", $username);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -30,6 +30,7 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
         if (password_verify($password, $admin['password_hash'])) {
             $_SESSION['admin_logged_in'] = true;
             $_SESSION['admin_id'] = $admin['id'];
+            $_SESSION['admin_role'] = $admin['role'];
             $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
             header("Location: admin.php");
             exit();
@@ -43,6 +44,7 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
 }
 
 $is_logged_in = isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true;
+$admin_role = isset($_SESSION['admin_role']) ? $_SESSION['admin_role'] : 'admin';
 
 if (!is_dir('uploads')) {
     mkdir('uploads', 0777, true);
@@ -209,10 +211,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['hapus_kategori_btn']))
     }
 }
 
-// Ubah Password Admin
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['ubah_password'])) {
+// Ubah Password Admin (Khusus Superadmin)
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['ubah_password']) && $admin_role === 'superadmin') {
     if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) { die("CSRF token validation failed."); }
     $active_tab = "section-pengaturan";
+    
+    $target_admin_id = (int)$_POST['target_admin_id'];
     $pass_lama = $_POST['password_lama'];
     $pass_baru = $_POST['password_baru'];
     $pass_konfirmasi = $_POST['konfirmasi_password'];
@@ -230,12 +234,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['ubah_password'])) {
         if (password_verify($pass_lama, $admin_row['password_hash'])) {
             $new_hash = password_hash($pass_baru, PASSWORD_BCRYPT);
             $stmt = $conn->prepare("UPDATE admins SET password_hash = ? WHERE id = ?");
-            $stmt->bind_param("si", $new_hash, $_SESSION['admin_id']);
-            if ($stmt->execute()) { $pesan_pass = "✅ Password berhasil diubah!"; }
+            $stmt->bind_param("si", $new_hash, $target_admin_id);
+            if ($stmt->execute()) { $pesan_pass = "✅ Password akun berhasil diubah!"; }
             $stmt->close();
         } else {
-            $pesan_pass = "❌ Password lama salah!";
+            $pesan_pass = "❌ Password (Superadmin) Anda salah!";
         }
+    }
+}
+
+// Fetch Admin List (Hanya untuk Superadmin)
+$admin_list = [];
+if ($is_logged_in && $admin_role === 'superadmin') {
+    $admin_res = $conn->query("SELECT id, username, role FROM admins ORDER BY id ASC");
+    if ($admin_res && $admin_res->num_rows > 0) {
+        while($r = $admin_res->fetch_assoc()) { $admin_list[] = $r; }
     }
 }
 
@@ -397,7 +410,9 @@ if ($is_logged_in) {
                 <a class="menu-item <?= $active_tab == 'section-produk' ? 'active' : '' ?>" onclick="switchTab('section-produk')">📋 Daftar Produk</a>
                 <a class="menu-item <?= $active_tab == 'section-tambah' ? 'active' : '' ?>" onclick="switchTab('section-tambah')">✨ Form Produk</a>
                 <a class="menu-item <?= $active_tab == 'section-kategori' ? 'active' : '' ?>" onclick="switchTab('section-kategori')">📁 Kelola Kategori</a>
-                <a class="menu-item <?= $active_tab == 'section-pengaturan' ? 'active' : '' ?>" onclick="switchTab('section-pengaturan')">⚙️ Pengaturan</a>
+                <?php if($admin_role === 'superadmin'): ?>
+                    <a class="menu-item <?= $active_tab == 'section-pengaturan' ? 'active' : '' ?>" onclick="switchTab('section-pengaturan')">⚙️ Pengaturan</a>
+                <?php endif; ?>
                 
                 <a href="?logout=1" class="menu-item logout">🔓 Keluar Admin</a>
             </div>
@@ -407,7 +422,7 @@ if ($is_logged_in) {
         <div class="main-wrapper">
             <header class="top-header">
                 <div class="header-title" id="topHeaderTitle">Dashboard</div>
-                <div>Selamat datang, <strong>Admin</strong></div>
+                <div>Selamat datang, <strong style="text-transform: capitalize;"><?= htmlspecialchars($admin_role) ?></strong></div>
             </header>
             
             <main class="content-area">
@@ -599,21 +614,31 @@ if ($is_logged_in) {
                     </div>
                 </div>
 
+                <?php if($admin_role === 'superadmin'): ?>
                 <!-- Section: Pengaturan Akun -->
                 <div id="section-pengaturan" class="section <?= $active_tab == 'section-pengaturan' ? 'active' : '' ?>">
                     <div class="card" style="max-width: 500px;">
-                        <div class="card-header"><h3 class="card-title">⚙️ Ubah Password Admin</h3></div>
+                        <div class="card-header"><h3 class="card-title">⚙️ Manajemen Akses & Password</h3></div>
                         <?php if ($pesan_pass != ""): ?>
                             <div class="alert <?= strpos($pesan_pass, '✅') !== false ? 'alert-success' : 'alert-error' ?>"><?= $pesan_pass; ?></div>
                         <?php endif; ?>
                         <form method="POST">
                             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
                             <div class="form-group">
-                                <label>Password Lama</label>
-                                <input type="password" name="password_lama" required>
+                                <label>Pilih Akun yang Akan Diubah</label>
+                                <select name="target_admin_id" required style="cursor: pointer; appearance: none;">
+                                    <?php foreach($admin_list as $adm): ?>
+                                        <option value="<?= $adm['id'] ?>">Username: <?= htmlspecialchars($adm['username']) ?> (<?= htmlspecialchars($adm['role']) ?>)</option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <hr style="border: 1px solid var(--surface-border); margin: 1.5rem 0;">
+                            <div class="form-group">
+                                <label>Password Anda (Superadmin) Saat Ini</label>
+                                <input type="password" name="password_lama" required placeholder="Untuk verifikasi keamanan">
                             </div>
                             <div class="form-group">
-                                <label>Password Baru</label>
+                                <label>Password Baru untuk Akun Terpilih</label>
                                 <input type="password" name="password_baru" required>
                             </div>
                             <div class="form-group">
@@ -624,6 +649,7 @@ if ($is_logged_in) {
                         </form>
                     </div>
                 </div>
+                <?php endif; ?>
 
             </main>
         </div>
