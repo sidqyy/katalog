@@ -60,24 +60,22 @@ export default function ProductDetailScreen({ route, navigation }) {
           <Text style={styles.sectionTitle}>Deskripsi Produk</Text>
           <Text style={styles.description}>{product.deskripsi}</Text>
           
-          <View style={{height: 120}} /> {/* Spacer untuk bottom button */}
+          <View style={{height: 40}} />
+          
+          {/* Action Buttons for WhatsApp */}
+          <View style={styles.buttonRow}>
+            <TouchableOpacity style={[styles.waButton, { flex: 1 }]} activeOpacity={0.9} onPress={() => handleOrderWhatsApp(waSettings.wa1_number)}>
+              <Text style={styles.waIcon}>💬</Text>
+              <Text style={styles.waButtonText}>Pesan via {waSettings.wa1_name}</Text>
+            </TouchableOpacity>
+            <View style={{ width: 10 }} />
+            <TouchableOpacity style={[styles.waButton, { flex: 1, backgroundColor: '#0ea5e9', shadowColor: '#0ea5e9' }]} activeOpacity={0.9} onPress={() => handleOrderWhatsApp(waSettings.wa2_number)}>
+              <Text style={styles.waIcon}>💬</Text>
+              <Text style={styles.waButtonText}>Pesan via {waSettings.wa2_name}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
-
-      {/* Floating Action Button for WhatsApp */}
-      <View style={styles.floatingButtonContainer}>
-        <View style={styles.buttonRow}>
-          <TouchableOpacity style={[styles.waButton, { flex: 1 }]} activeOpacity={0.9} onPress={() => handleOrderWhatsApp(waSettings.wa1_number)}>
-            <Text style={styles.waIcon}>💬</Text>
-            <Text style={styles.waButtonText}>Pesan via {waSettings.wa1_name}</Text>
-          </TouchableOpacity>
-          <View style={{ width: 10 }} />
-          <TouchableOpacity style={[styles.waButton, { flex: 1, backgroundColor: '#0ea5e9', shadowColor: '#0ea5e9' }]} activeOpacity={0.9} onPress={() => handleOrderWhatsApp(waSettings.wa2_number)}>
-            <Text style={styles.waIcon}>💬</Text>
-            <Text style={styles.waButtonText}>Pesan via {waSettings.wa2_name}</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
     </View>
   );
 }
@@ -165,20 +163,11 @@ const styles = StyleSheet.create({
     color: '#94a3b8', 
     lineHeight: 26, 
   },
-  floatingButtonContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 15,
-    alignItems: 'center',
-    pointerEvents: 'box-none',
-  },
   buttonRow: {
     flexDirection: 'row',
     width: '100%',
-    maxWidth: 600,
     justifyContent: 'space-between',
+    marginTop: 'auto',
   },
   waButton: { 
     flexDirection: 'row',
