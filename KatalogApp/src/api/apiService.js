@@ -12,7 +12,11 @@ export const fetchProducts = async (search = '', minPrice = '', maxPrice = '', k
     const json = await response.json();
     
     if (json.status === 'success') {
-      return json.data;
+      const IP = '192.168.100.194';
+      return json.data.map(item => ({
+        ...item,
+        link_gambar: item.link_gambar ? item.link_gambar.replace('localhost', IP).replace('127.0.0.1', IP) : item.link_gambar
+      }));
     } else {
       throw new Error("Gagal mengambil data");
     }
