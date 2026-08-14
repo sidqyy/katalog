@@ -1,4 +1,4 @@
-const BASE_URL = 'http://127.0.0.1/Katalog/api/api_produk.php'; // Sesuaikan IP jika dijalankan di HP fisik
+const BASE_URL = 'http://192.168.100.194/Katalog/api/api_produk.php'; // Diganti IP Wi-Fi agar bisa diakses dari HP fisik
 
 export const fetchProducts = async (search = '', minPrice = '', maxPrice = '', kategori = '', page = 1, limit = 10) => {
   try {
