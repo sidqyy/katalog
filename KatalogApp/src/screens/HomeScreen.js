@@ -8,7 +8,7 @@ const isWeb = Platform.OS === 'web';
 
 export default function HomeScreen({ navigation }) {
   const { width } = useWindowDimensions();
-  const numCols = width >= 1024 ? 5 : width >= 768 ? 4 : 3;
+  const numCols = width >= 1024 ? 4 : width >= 768 ? 3 : 2;
   const paddingHorizontal = width >= 768 ? 20 : 10;
   
   // Kalkulasi lebar pasti kartu agar tidak stretch saat jumlah item kurang dari jumlah kolom
@@ -377,14 +377,14 @@ const styles = StyleSheet.create({
     padding: 15,
   },
   name: { 
-    fontSize: 13, 
+    fontSize: 14, 
     fontWeight: '600', 
     color: '#e2e8f0', 
-    marginBottom: 4,
-    lineHeight: 18,
+    marginBottom: 6,
+    lineHeight: 20,
   },
   price: { 
-    fontSize: 14, 
+    fontSize: 16, 
     color: '#34d399', 
     fontWeight: '800' 
   },
