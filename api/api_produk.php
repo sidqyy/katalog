@@ -16,7 +16,7 @@ $limit = isset($_GET['limit']) && (int)$_GET['limit'] > 0 ? (int)$_GET['limit'] 
 $offset = ($page - 1) * $limit;
 
 // Menyusun Query
-$query = "SELECT id, nama_produk, harga, deskripsi, link_gambar FROM products WHERE 1=1";
+$query = "SELECT id, nama_produk, harga, deskripsi, link_gambar FROM products WHERE status = 1";
 $params = [];
 $types = "";
 

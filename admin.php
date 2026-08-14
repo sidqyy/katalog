@@ -50,8 +50,10 @@ if (!is_dir('uploads')) {
 
 $pesan = "";
 $pesan_kategori = "";
-$active_tab = "section-produk"; // Default tab
+$pesan_pass = "";
+$active_tab = "section-dashboard"; // Default tab ke Dashboard
 
+// Helper Upload Gambar
 function uploadGambar($file) {
     if ($file['error'] === 0) {
         $nama_file_asli = basename($file["name"]);
@@ -65,18 +67,15 @@ function uploadGambar($file) {
             $mime = $check['mime'];
             $image = false;
 
-            if ($mime == 'image/jpeg') {
-                $image = imagecreatefromjpeg($file["tmp_name"]);
-            } elseif ($mime == 'image/png') {
+            if ($mime == 'image/jpeg') { $image = imagecreatefromjpeg($file["tmp_name"]); } 
+            elseif ($mime == 'image/png') {
                 $image = imagecreatefrompng($file["tmp_name"]);
                 imagepalettetotruecolor($image);
                 imagealphablending($image, true);
                 imagesavealpha($image, true);
-            } elseif ($mime == 'image/gif') {
-                $image = imagecreatefromgif($file["tmp_name"]);
-            } elseif ($mime == 'image/webp') {
-                $image = imagecreatefromwebp($file["tmp_name"]);
-            }
+            } 
+            elseif ($mime == 'image/gif') { $image = imagecreatefromgif($file["tmp_name"]); } 
+            elseif ($mime == 'image/webp') { $image = imagecreatefromwebp($file["tmp_name"]); }
 
             if ($image !== false) {
                 if (imagewebp($image, $target_file, 80)) {
@@ -120,6 +119,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['simpan'])) {
     $kategori = trim($_POST['kategori']);
     $harga = (float)$_POST['harga'];
     $deskripsi = trim($_POST['deskripsi']);
+    $status = isset($_POST['status']) ? (int)$_POST['status'] : 1;
     $link_gambar = isset($_POST['gambar_lama']) ? $_POST['gambar_lama'] : '';
 
     if (isset($_FILES['gambar']) && $_FILES['gambar']['error'] === 0) {
@@ -131,8 +131,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['simpan'])) {
     }
 
     if ($id_produk > 0) {
-        $stmt = $conn->prepare("UPDATE products SET nama_produk=?, kategori=?, harga=?, deskripsi=?, link_gambar=? WHERE id=?");
-        $stmt->bind_param("ssdssi", $nama, $kategori, $harga, $deskripsi, $link_gambar, $id_produk);
+        $stmt = $conn->prepare("UPDATE products SET nama_produk=?, kategori=?, harga=?, deskripsi=?, link_gambar=?, status=? WHERE id=?");
+        $stmt->bind_param("ssdssii", $nama, $kategori, $harga, $deskripsi, $link_gambar, $status, $id_produk);
         if ($stmt->execute()) { 
             $pesan = "✅ Produk berhasil diperbarui!"; 
             $active_tab = "section-produk";
@@ -142,8 +142,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['simpan'])) {
         }
         $stmt->close();
     } else {
-        $stmt = $conn->prepare("INSERT INTO products (nama_produk, kategori, harga, deskripsi, link_gambar) VALUES (?, ?, ?, ?, ?)");
-        $stmt->bind_param("ssdss", $nama, $kategori, $harga, $deskripsi, $link_gambar);
+        $stmt = $conn->prepare("INSERT INTO products (nama_produk, kategori, harga, deskripsi, link_gambar, status) VALUES (?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("ssdssi", $nama, $kategori, $harga, $deskripsi, $link_gambar, $status);
         if ($stmt->execute()) { 
             $pesan = "✅ Produk baru berhasil ditambahkan!"; 
             $active_tab = "section-produk";
@@ -181,9 +181,7 @@ if (isset($_GET['hapus']) && isset($_GET['csrf_token'])) {
 
 // Tambah Kategori
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['simpan_kategori'])) {
-    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
-        die("CSRF token validation failed.");
-    }
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) { die("CSRF token validation failed."); }
     $active_tab = "section-kategori";
     $nama_kategori = trim($_POST['nama_kategori']);
     if ($nama_kategori !== "") {
@@ -200,20 +198,44 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['simpan_kategori'])) {
 
 // Hapus Kategori via POST Dropdown
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['hapus_kategori_btn'])) {
-    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
-        die("CSRF token validation failed.");
-    }
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) { die("CSRF token validation failed."); }
     $active_tab = "section-kategori";
     $id_kategori = isset($_POST['id_hapus_kategori']) ? (int)$_POST['id_hapus_kategori'] : 0;
     if ($id_kategori > 0) {
         $stmt = $conn->prepare("DELETE FROM categories WHERE id=?");
         $stmt->bind_param("i", $id_kategori);
-        if ($stmt->execute()) {
-            $pesan_kategori = "✅ Kategori berhasil dihapus!";
-        } else {
-            $pesan_kategori = "❌ Gagal menghapus kategori.";
-        }
+        if ($stmt->execute()) { $pesan_kategori = "✅ Kategori berhasil dihapus!"; } else { $pesan_kategori = "❌ Gagal menghapus kategori."; }
         $stmt->close();
+    }
+}
+
+// Ubah Password Admin
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['ubah_password'])) {
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) { die("CSRF token validation failed."); }
+    $active_tab = "section-pengaturan";
+    $pass_lama = $_POST['password_lama'];
+    $pass_baru = $_POST['password_baru'];
+    $pass_konfirmasi = $_POST['konfirmasi_password'];
+    
+    if ($pass_baru !== $pass_konfirmasi) {
+        $pesan_pass = "❌ Konfirmasi password tidak cocok!";
+    } else {
+        $stmt = $conn->prepare("SELECT password_hash FROM admins WHERE id = ?");
+        $stmt->bind_param("i", $_SESSION['admin_id']);
+        $stmt->execute();
+        $res_pass = $stmt->get_result();
+        $admin_row = $res_pass->fetch_assoc();
+        $stmt->close();
+        
+        if (password_verify($pass_lama, $admin_row['password_hash'])) {
+            $new_hash = password_hash($pass_baru, PASSWORD_BCRYPT);
+            $stmt = $conn->prepare("UPDATE admins SET password_hash = ? WHERE id = ?");
+            $stmt->bind_param("si", $new_hash, $_SESSION['admin_id']);
+            if ($stmt->execute()) { $pesan_pass = "✅ Password berhasil diubah!"; }
+            $stmt->close();
+        } else {
+            $pesan_pass = "❌ Password lama salah!";
+        }
     }
 }
 
@@ -221,13 +243,24 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['hapus_kategori_btn']))
 $kategori_result = $conn->query("SELECT * FROM categories ORDER BY id ASC");
 $kategori_list = [];
 if ($kategori_result && $kategori_result->num_rows > 0) {
-    while($row = $kategori_result->fetch_assoc()) {
-        $kategori_list[] = $row;
-    }
+    while($row = $kategori_result->fetch_assoc()) { $kategori_list[] = $row; }
 }
 
 // Fetch Produk
 $result = $conn->query("SELECT * FROM products ORDER BY id DESC");
+
+// Fetch Statistik Dasbor
+$stats_produk = 0; $stats_kategori = 0; $stats_aktif = 0;
+if ($is_logged_in) {
+    $r1 = $conn->query("SELECT COUNT(*) as total FROM products");
+    if($r1) $stats_produk = $r1->fetch_assoc()['total'];
+    
+    $r2 = $conn->query("SELECT COUNT(*) as total FROM categories");
+    if($r2) $stats_kategori = $r2->fetch_assoc()['total'];
+    
+    $r3 = $conn->query("SELECT COUNT(*) as total FROM products WHERE status=1");
+    if($r3) $stats_aktif = $r3->fetch_assoc()['total'];
+}
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -238,17 +271,9 @@ $result = $conn->query("SELECT * FROM products ORDER BY id DESC");
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #6366f1;
-            --primary-hover: #4f46e5;
-            --bg-color: #0f172a;
-            --sidebar-bg: #1e293b;
-            --surface: rgba(30, 41, 59, 0.9);
-            --surface-border: rgba(255, 255, 255, 0.1);
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --danger: #ef4444;
-            --success: #10b981;
-            --warning: #f59e0b;
+            --primary: #6366f1; --primary-hover: #4f46e5; --bg-color: #0f172a; --sidebar-bg: #1e293b;
+            --surface: rgba(30, 41, 59, 0.9); --surface-border: rgba(255, 255, 255, 0.1);
+            --text-main: #f8fafc; --text-muted: #94a3b8; --danger: #ef4444; --success: #10b981; --warning: #f59e0b;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Outfit', sans-serif; }
         body { background: var(--bg-color); color: var(--text-main); height: 100vh; overflow: hidden; }
@@ -278,14 +303,20 @@ $result = $conn->query("SELECT * FROM products ORDER BY id DESC");
         .section { display: none; animation: fadeIn 0.3s ease; }
         .section.active { display: block; }
         
+        /* Dashboard Stats */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+        .stat-card { background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.9)); border: 1px solid var(--surface-border); padding: 1.5rem; border-radius: 1rem; text-align: center; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .stat-value { font-size: 2.5rem; font-weight: 800; color: var(--primary); margin: 0.5rem 0; }
+        .stat-label { color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px; }
+
         /* Components */
         .card { background: var(--surface); border: 1px solid var(--surface-border); border-radius: 1rem; padding: 2rem; margin-bottom: 2rem; box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.3); }
-        .card-header { margin-bottom: 1.5rem; border-bottom: 1px solid var(--surface-border); padding-bottom: 1rem; }
+        .card-header { margin-bottom: 1.5rem; border-bottom: 1px solid var(--surface-border); padding-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
         .card-title { font-size: 1.4rem; font-weight: 700; }
         
         .form-group { margin-bottom: 1.25rem; }
         label { display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: var(--text-muted); font-weight: 600; }
-        input[type="text"], input[type="number"], input[type="file"], textarea, select { width: 100%; padding: 0.8rem 1rem; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--surface-border); border-radius: 0.5rem; color: var(--text-main); font-size: 1rem; outline: none; transition: border-color 0.3s; }
+        input[type="text"], input[type="password"], input[type="number"], input[type="file"], textarea, select { width: 100%; padding: 0.8rem 1rem; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--surface-border); border-radius: 0.5rem; color: var(--text-main); font-size: 1rem; outline: none; transition: border-color 0.3s; }
         select option { background: var(--bg-color); color: var(--text-main); }
         input:focus, textarea:focus, select:focus { border-color: var(--primary); }
         textarea { resize: vertical; min-height: 100px; }
@@ -301,6 +332,9 @@ $result = $conn->query("SELECT * FROM products ORDER BY id DESC");
         .alert-success { background: rgba(16, 185, 129, 0.2); border: 1px solid var(--success); color: #34d399; }
         .alert-error { background: rgba(239, 68, 68, 0.2); border: 1px solid var(--danger); color: #fca5a5; }
         
+        /* Search Box */
+        .search-box { padding: 0.6rem 1rem; border-radius: 20px; border: 1px solid var(--surface-border); background: rgba(15,23,42,0.6); color: white; min-width: 250px; }
+        
         .table-responsive { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 1rem; text-align: left; border-bottom: 1px solid var(--surface-border); }
@@ -309,6 +343,10 @@ $result = $conn->query("SELECT * FROM products ORDER BY id DESC");
         .img-preview { width: 50px; height: 50px; border-radius: 8px; object-fit: cover; }
         .action-btns { display: flex; gap: 0.5rem; }
         .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.85rem; border-radius: 0.3rem; }
+        
+        .badge { padding: 0.3rem 0.6rem; border-radius: 12px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; }
+        .badge-active { background: rgba(16, 185, 129, 0.2); color: var(--success); border: 1px solid var(--success); }
+        .badge-hidden { background: rgba(245, 158, 11, 0.2); color: var(--warning); border: 1px solid var(--warning); }
         
         /* Modal Delete */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(5px); z-index: 1000; display: none; justify-content: center; align-items: center; }
@@ -355,9 +393,11 @@ $result = $conn->query("SELECT * FROM products ORDER BY id DESC");
         <aside class="sidebar">
             <div class="sidebar-logo">📦 <span>Katalog.</span></div>
             <div class="menu-list">
+                <a class="menu-item <?= $active_tab == 'section-dashboard' ? 'active' : '' ?>" onclick="switchTab('section-dashboard')">📊 Dashboard</a>
                 <a class="menu-item <?= $active_tab == 'section-produk' ? 'active' : '' ?>" onclick="switchTab('section-produk')">📋 Daftar Produk</a>
                 <a class="menu-item <?= $active_tab == 'section-tambah' ? 'active' : '' ?>" onclick="switchTab('section-tambah')">✨ Form Produk</a>
                 <a class="menu-item <?= $active_tab == 'section-kategori' ? 'active' : '' ?>" onclick="switchTab('section-kategori')">📁 Kelola Kategori</a>
+                <a class="menu-item <?= $active_tab == 'section-pengaturan' ? 'active' : '' ?>" onclick="switchTab('section-pengaturan')">⚙️ Pengaturan</a>
                 
                 <a href="?logout=1" class="menu-item logout">🔓 Keluar Admin</a>
             </div>
@@ -366,12 +406,31 @@ $result = $conn->query("SELECT * FROM products ORDER BY id DESC");
         <!-- Main Content Wrapper -->
         <div class="main-wrapper">
             <header class="top-header">
-                <div class="header-title" id="topHeaderTitle">Daftar Produk</div>
+                <div class="header-title" id="topHeaderTitle">Dashboard</div>
                 <div>Selamat datang, <strong>Admin</strong></div>
             </header>
             
             <main class="content-area">
                 
+                <!-- Section: Dashboard -->
+                <div id="section-dashboard" class="section <?= $active_tab == 'section-dashboard' ? 'active' : '' ?>">
+                    <h2 style="margin-bottom: 2rem;">Ringkasan Sistem</h2>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-label">Total Produk</div>
+                            <div class="stat-value"><?= $stats_produk ?></div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Produk Aktif</div>
+                            <div class="stat-value" style="color: var(--success);"><?= $stats_aktif ?></div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Kategori Tersedia</div>
+                            <div class="stat-value" style="color: var(--warning);"><?= $stats_kategori ?></div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Section: Daftar Produk -->
                 <div id="section-produk" class="section <?= $active_tab == 'section-produk' ? 'active' : '' ?>">
                     <?php if ($pesan != "" && $active_tab == 'section-produk'): ?>
@@ -380,27 +439,36 @@ $result = $conn->query("SELECT * FROM products ORDER BY id DESC");
                     <div class="card">
                         <div class="card-header">
                             <h3 class="card-title">📦 Semua Produk</h3>
+                            <input type="text" id="searchProduk" class="search-box" placeholder="Cari nama produk..." onkeyup="filterTable()">
                         </div>
                         <div class="table-responsive">
-                            <table>
+                            <table id="productTable">
                                 <thead>
                                     <tr>
                                         <th>Gambar</th>
                                         <th>Detail Produk</th>
                                         <th>Harga</th>
+                                        <th>Status</th>
                                         <th>Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <?php if ($result->num_rows > 0): ?>
                                         <?php while($row = $result->fetch_assoc()): ?>
-                                            <tr>
+                                            <tr class="product-row">
                                                 <td><img src="<?= htmlspecialchars($row['link_gambar']) ?>" alt="img" class="img-preview" onerror="this.src='https://via.placeholder.com/60'"></td>
                                                 <td>
-                                                    <strong><?= htmlspecialchars($row['nama_produk']) ?></strong><br>
+                                                    <strong class="product-name"><?= htmlspecialchars($row['nama_produk']) ?></strong><br>
                                                     <span style="color: var(--text-muted); font-size: 0.85rem;"><?= htmlspecialchars($row['kategori']) ?></span>
                                                 </td>
                                                 <td style="color: var(--success); font-weight: 600;">Rp <?= number_format($row['harga'], 0, ',', '.') ?></td>
+                                                <td>
+                                                    <?php if(isset($row['status']) && $row['status'] == 1): ?>
+                                                        <span class="badge badge-active">Tersedia</span>
+                                                    <?php else: ?>
+                                                        <span class="badge badge-hidden">Sembunyi</span>
+                                                    <?php endif; ?>
+                                                </td>
                                                 <td>
                                                     <div class="action-btns">
                                                         <button class="btn btn-sm btn-primary" style="background: rgba(99, 102, 241, 0.2); color: #818cf8;" onclick="editProduct(
@@ -409,7 +477,8 @@ $result = $conn->query("SELECT * FROM products ORDER BY id DESC");
                                                             '<?= htmlspecialchars(addslashes($row['kategori'])) ?>', 
                                                             <?= $row['harga'] ?>, 
                                                             '<?= htmlspecialchars(addslashes(preg_replace("/\r|\n/", "\\n", $row['deskripsi']))) ?>',
-                                                            '<?= htmlspecialchars(addslashes($row['link_gambar'])) ?>'
+                                                            '<?= htmlspecialchars(addslashes($row['link_gambar'])) ?>',
+                                                            <?= isset($row['status']) ? $row['status'] : 1 ?>
                                                         )">Edit</button>
                                                         <button class="btn btn-sm btn-danger" style="background: rgba(239, 68, 68, 0.2); color: #fca5a5;" onclick="showDeleteModal(<?= $row['id'] ?>)">Hapus</button>
                                                     </div>
@@ -417,8 +486,9 @@ $result = $conn->query("SELECT * FROM products ORDER BY id DESC");
                                             </tr>
                                         <?php endwhile; ?>
                                     <?php else: ?>
-                                        <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Belum ada produk tersimpan.</td></tr>
+                                        <tr id="noDataRow"><td colspan="5" style="text-align: center; color: var(--text-muted);">Belum ada produk tersimpan.</td></tr>
                                     <?php endif; ?>
+                                    <tr id="noResultRow" style="display:none;"><td colspan="5" style="text-align: center; color: var(--text-muted);">Pencarian tidak ditemukan.</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -459,6 +529,13 @@ $result = $conn->query("SELECT * FROM products ORDER BY id DESC");
                                 <input type="number" name="harga" id="inputHarga" required placeholder="Mis: 150000">
                             </div>
                             <div class="form-group">
+                                <label>Status Visibilitas</label>
+                                <select name="status" id="inputStatus" required style="cursor: pointer; appearance: none;">
+                                    <option value="1">Tersedia (Tampil di Aplikasi)</option>
+                                    <option value="0">Habis / Sembunyikan</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
                                 <label>Upload Gambar <span style="font-size: 0.8em; color: var(--warning);">(Abaikan jika tidak ingin mengubah gambar)</span></label>
                                 <input type="file" name="gambar" accept="image/*">
                             </div>
@@ -479,45 +556,35 @@ $result = $conn->query("SELECT * FROM products ORDER BY id DESC");
 
                 <!-- Section: Kelola Kategori -->
                 <div id="section-kategori" class="section <?= $active_tab == 'section-kategori' ? 'active' : '' ?>">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
                         
-                        <!-- Form Tambah Kategori -->
                         <div class="card">
-                            <div class="card-header">
-                                <h3 class="card-title">➕ Tambah Kategori Baru</h3>
-                            </div>
-                            
+                            <div class="card-header"><h3 class="card-title">➕ Tambah Kategori</h3></div>
                             <?php if (isset($pesan_kategori) && strpos($pesan_kategori, 'ditambahkan') !== false): ?>
                                 <div class="alert alert-success"><?= $pesan_kategori; ?></div>
                             <?php endif; ?>
-                            
                             <form method="POST">
                                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
                                 <div class="form-group">
                                     <label>Nama Kategori Baru</label>
                                     <input type="text" name="nama_kategori" required placeholder="Mis: Elektronik">
                                 </div>
-                                <button type="submit" name="simpan_kategori" class="btn btn-primary" style="width: 100%;">Tambah Kategori</button>
+                                <button type="submit" name="simpan_kategori" class="btn btn-primary" style="width: 100%;">Tambah</button>
                             </form>
                         </div>
                         
-                        <!-- Form Hapus Kategori -->
                         <div class="card">
-                            <div class="card-header">
-                                <h3 class="card-title">🗑️ Hapus Kategori</h3>
-                            </div>
-                            
+                            <div class="card-header"><h3 class="card-title">🗑️ Hapus Kategori</h3></div>
                             <?php if (isset($pesan_kategori) && strpos($pesan_kategori, 'dihapus') !== false): ?>
                                 <div class="alert alert-success"><?= $pesan_kategori; ?></div>
                             <?php endif; ?>
                             <?php if (isset($pesan_kategori) && strpos($pesan_kategori, 'Gagal') !== false): ?>
                                 <div class="alert alert-error"><?= $pesan_kategori; ?></div>
                             <?php endif; ?>
-                            
                             <form method="POST" onsubmit="return confirm('Yakin ingin menghapus kategori ini secara permanen?')">
                                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
                                 <div class="form-group">
-                                    <label>Pilih Kategori yang Ingin Dihapus</label>
+                                    <label>Pilih Kategori</label>
                                     <select name="id_hapus_kategori" required style="cursor: pointer; appearance: none;">
                                         <option value="" disabled selected>Pilih Kategori...</option>
                                         <?php foreach($kategori_list as $kat): ?>
@@ -525,10 +592,36 @@ $result = $conn->query("SELECT * FROM products ORDER BY id DESC");
                                         <?php endforeach; ?>
                                     </select>
                                 </div>
-                                <button type="submit" name="hapus_kategori_btn" class="btn btn-danger" style="width: 100%;">Hapus Kategori</button>
+                                <button type="submit" name="hapus_kategori_btn" class="btn btn-danger" style="width: 100%;">Hapus</button>
                             </form>
                         </div>
                         
+                    </div>
+                </div>
+
+                <!-- Section: Pengaturan Akun -->
+                <div id="section-pengaturan" class="section <?= $active_tab == 'section-pengaturan' ? 'active' : '' ?>">
+                    <div class="card" style="max-width: 500px;">
+                        <div class="card-header"><h3 class="card-title">⚙️ Ubah Password Admin</h3></div>
+                        <?php if ($pesan_pass != ""): ?>
+                            <div class="alert <?= strpos($pesan_pass, '✅') !== false ? 'alert-success' : 'alert-error' ?>"><?= $pesan_pass; ?></div>
+                        <?php endif; ?>
+                        <form method="POST">
+                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+                            <div class="form-group">
+                                <label>Password Lama</label>
+                                <input type="password" name="password_lama" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Password Baru</label>
+                                <input type="password" name="password_baru" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Konfirmasi Password Baru</label>
+                                <input type="password" name="konfirmasi_password" required>
+                            </div>
+                            <button type="submit" name="ubah_password" class="btn btn-warning" style="width: 100%; background: var(--warning); color: white; border: none;">Simpan Password Baru</button>
+                        </form>
                     </div>
                 </div>
 
@@ -549,7 +642,7 @@ $result = $conn->query("SELECT * FROM products ORDER BY id DESC");
     </div>
 
     <script>
-        // Fungsi Navigasi Tab / Sidebar
+        // Fungsi Navigasi Tab
         function switchTab(tabId) {
             document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
             document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
@@ -557,28 +650,28 @@ $result = $conn->query("SELECT * FROM products ORDER BY id DESC");
             document.getElementById(tabId).classList.add('active');
             document.querySelector(`[onclick="switchTab('${tabId}')"]`).classList.add('active');
             
-            // Ubah Title Header
             let titles = {
+                'section-dashboard': 'Ringkasan Dashboard',
                 'section-produk': 'Daftar Produk',
                 'section-tambah': 'Manajemen Form Produk',
-                'section-kategori': 'Kelola Kategori'
+                'section-kategori': 'Kelola Kategori',
+                'section-pengaturan': 'Pengaturan Akun'
             };
             document.getElementById('topHeaderTitle').innerText = titles[tabId];
         }
         
-        // Panggil untuk inisialisasi judul tab aktif
-        let initialTab = document.querySelector('.section.active').id;
-        switchTab(initialTab);
+        let initialTab = document.querySelector('.section.active');
+        if(initialTab) switchTab(initialTab.id);
 
         // Edit Produk Logic
-        function editProduct(id, nama, kategori, harga, deskripsi, link_gambar) {
-            switchTab('section-tambah'); // Pindah ke tab form
-            
+        function editProduct(id, nama, kategori, harga, deskripsi, link_gambar, status) {
+            switchTab('section-tambah');
             document.getElementById('formTitle').innerHTML = '✏️ Edit Produk';
             document.getElementById('inputId').value = id;
             document.getElementById('inputNama').value = nama;
             document.getElementById('inputKategori').value = kategori;
             document.getElementById('inputHarga').value = harga;
+            document.getElementById('inputStatus').value = status;
             document.getElementById('inputDeskripsi').value = deskripsi;
             
             document.getElementById('inputGambarLama').value = link_gambar;
@@ -589,13 +682,14 @@ $result = $conn->query("SELECT * FROM products ORDER BY id DESC");
             document.getElementById('btnCancel').style.display = 'block';
         }
 
-        // Reset Form Logic
+        // Reset Form
         function resetForm() {
             document.getElementById('formTitle').innerHTML = '✨ Tambah Produk Baru';
             document.getElementById('inputId').value = '';
             document.getElementById('inputNama').value = '';
             document.getElementById('inputKategori').value = '';
             document.getElementById('inputHarga').value = '';
+            document.getElementById('inputStatus').value = '1';
             document.getElementById('inputDeskripsi').value = '';
             document.getElementById('inputGambarLama').value = '';
             
@@ -604,7 +698,27 @@ $result = $conn->query("SELECT * FROM products ORDER BY id DESC");
             document.getElementById('btnCancel').style.display = 'none';
         }
         
-        // Modal Delete Logic
+        // Live Search JS
+        function filterTable() {
+            let input = document.getElementById("searchProduk");
+            let filter = input.value.toLowerCase();
+            let rows = document.querySelectorAll(".product-row");
+            let visibleCount = 0;
+            
+            rows.forEach(row => {
+                let text = row.querySelector(".product-name").innerText.toLowerCase();
+                if (text.includes(filter)) {
+                    row.style.display = "";
+                    visibleCount++;
+                } else {
+                    row.style.display = "none";
+                }
+            });
+            
+            document.getElementById("noResultRow").style.display = (visibleCount === 0 && rows.length > 0) ? "" : "none";
+        }
+        
+        // Modal Delete
         function showDeleteModal(id) {
             const confirmBtn = document.getElementById('confirmDeleteBtn');
             confirmBtn.href = '?hapus=' + id + '&csrf_token=<?= htmlspecialchars($csrf_token) ?>';
