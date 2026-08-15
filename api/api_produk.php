@@ -4,8 +4,15 @@ header("Content-Type: application/json; charset=UTF-8");
 
 require_once '../config.php';
 
-// Menangkap parameter GET
+// Menangkap parameter GET atau PATH INFO
 $search = isset($_GET['search']) ? $conn->real_escape_string($_GET['search']) : '';
+if (empty($search) && isset($_SERVER['PATH_INFO'])) {
+    $path = trim($_SERVER['PATH_INFO'], '/');
+    if (!empty($path)) {
+        $search = $conn->real_escape_string($path);
+    }
+}
+
 $kategori = isset($_GET['kategori']) ? $conn->real_escape_string($_GET['kategori']) : '';
 $min_price = isset($_GET['minprice']) ? (float)$_GET['minprice'] : (isset($_GET['min_price']) ? (float)$_GET['min_price'] : 0);
 $max_price = isset($_GET['maxprice']) ? (float)$_GET['maxprice'] : (isset($_GET['max_price']) ? (float)$_GET['max_price'] : 0);
