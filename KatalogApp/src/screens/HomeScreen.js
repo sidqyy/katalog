@@ -180,15 +180,7 @@ export default function HomeScreen({ navigation }) {
               onRefresh={onRefresh}
               onEndReached={handleLoadMore}
               onEndReachedThreshold={0.5}
-              ListFooterComponent={
-                <View style={styles.footerContainer}>
-                  {loadingMore ? (
-                    <ActivityIndicator size="small" color="#6366f1" />
-                  ) : (
-                    <Text style={styles.footerText}>Katalog Premium © 2026 - All Rights Reserved</Text>
-                  )}
-                </View>
-              }
+              ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color="#6366f1" style={{ margin: 20 }} /> : null}
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
                   <Text style={styles.emptyEmoji}>📦</Text>
@@ -197,6 +189,11 @@ export default function HomeScreen({ navigation }) {
               }
             />
           )}
+        </View>
+
+        {/* Footer Fixed at Bottom */}
+        <View style={styles.footerContainer}>
+          <Text style={styles.footerText}>Katalog Premium © 2026 - All Rights Reserved</Text>
         </View>
 
         {/* Magic Button -> Navigasi ke Admin */}
@@ -434,10 +431,14 @@ const styles = StyleSheet.create({
     zIndex: 999 
   },
   footerContainer: {
-    padding: 30,
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 'auto', // Pushes footer to bottom if content is short
+    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+    borderTopWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   footerText: {
     color: '#64748b',
