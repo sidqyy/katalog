@@ -1,4 +1,9 @@
-const BASE_URL = 'http://192.168.100.194/Katalog/api/api_produk.php'; // Diganti IP Wi-Fi agar bisa diakses dari HP fisik
+// === KONFIGURASI URL API ===
+// Gunakan ini untuk SERVER PRODUCTION (cPanel Rumahweb)
+const BASE_URL = 'https://katalog.jsflorist.com/api/api_produk.php'; 
+
+// Gunakan ini JIKA INGIN TESTING LOKAL (Hapus tanda // di bawah, dan beri // pada link production di atas)
+// const BASE_URL = 'http://192.168.100.194/Katalog/api/api_produk.php'; 
 
 export const fetchProducts = async (search = '', minPrice = '', maxPrice = '', kategori = '', page = 1, limit = 10) => {
   try {
