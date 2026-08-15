@@ -8,7 +8,8 @@ const isWeb = Platform.OS === 'web';
 
 export default function HomeScreen({ navigation }) {
   const { width } = useWindowDimensions();
-  const numCols = width >= 1024 ? 4 : width >= 768 ? 3 : 2;
+  // Karena MAX_WIDTH 800, maksimal 3 kolom agar rapi
+  const numCols = width >= 768 ? 3 : 2;
   const paddingHorizontal = width >= 768 ? 20 : 10;
   
   const [products, setProducts] = useState([]);
@@ -219,6 +220,7 @@ const styles = StyleSheet.create({
     minHeight: '100%',
     backgroundColor: '#0f172a', // Dark theme background
     alignItems: 'center',
+    overflow: 'hidden', // Mencegah horizontal scroll karena efek blur background
   },
   innerContainer: {
     flex: 1,
