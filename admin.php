@@ -505,6 +505,8 @@ if ($is_logged_in) {
                                                 $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https://' : 'http://';
                                                 $current_host = $protocol . $_SERVER['HTTP_HOST'];
                                                 $link_gambar = preg_replace('#^https?://(localhost|127\.0\.0\.1)(:\d+)?#', $current_host, $link_gambar);
+                                                // Hapus subfolder /Katalog/ karena di cPanel file berada di root (public_html/subdomain)
+                                                $link_gambar = str_replace($current_host . '/Katalog/', $current_host . '/', $link_gambar);
                                             }
                                             ?>
                                             <tr class="product-row">
