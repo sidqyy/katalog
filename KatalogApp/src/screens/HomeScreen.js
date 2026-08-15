@@ -199,7 +199,14 @@ export default function HomeScreen({ navigation }) {
         {/* Magic Button -> Navigasi ke Admin */}
         <TouchableOpacity 
           style={styles.magicButton} 
-          onPress={() => Linking.openURL('http://localhost/Katalog/admin.php')} 
+          onPress={() => {
+            if (Platform.OS === 'web') {
+              // Jika di production, arahkan ke /admin.php, jika di local arahkan ke url cPanel
+              window.location.href = window.location.hostname.includes('localhost') 
+                ? 'https://katalog.jsflorist.com/admin.php' 
+                : '/admin.php';
+            }
+          }}
         />
       </View>
     </View>
