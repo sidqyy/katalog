@@ -3,7 +3,7 @@ import { View, Text, TextInput, FlatList, Image, TouchableOpacity, StyleSheet, A
 import { fetchProducts, fetchCategories } from '../api/apiService';
 
 // Untuk tampilan web agar tidak terlalu lebar, kita batasi lebarnya
-const MAX_WIDTH = 1200;
+const MAX_WIDTH = 800; // Lebih compact di desktop
 const isWeb = Platform.OS === 'web';
 
 export default function HomeScreen({ navigation }) {
@@ -235,18 +235,18 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: 200,
   },
   header: {
-    paddingTop: 40,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingTop: 20,
+    paddingHorizontal: 15,
+    paddingBottom: 10,
   },
   title: {
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: '800',
     color: '#f8fafc',
-    marginBottom: 5,
+    marginBottom: 4,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#94a3b8',
   },
   categoryContainer: {
@@ -276,53 +276,46 @@ const styles = StyleSheet.create({
   categoryChipTextActive: {
     color: '#fff',
   },
-  filterContainer: { 
-    marginHorizontal: 20,
-    marginBottom: 20,
-    padding: 20, 
-    backgroundColor: 'rgba(30, 41, 59, 0.7)', 
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20 },
-      android: { elevation: 10 },
-      web: { boxShadow: '0 20px 40px -10px rgba(0,0,0,0.5)', backdropFilter: 'blur(12px)' }
-    }),
+  filterContainer: {
+    paddingHorizontal: 15,
+    paddingBottom: 10,
+    width: '100%',
   },
   searchWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
-    borderRadius: 16,
-    paddingHorizontal: 15,
-    marginBottom: 15,
+    backgroundColor: 'rgba(30, 41, 59, 0.7)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 40,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   searchIcon: {
-    fontSize: 18,
-    marginRight: 10,
+    marginRight: 8,
+    fontSize: 14,
   },
-  searchInput: { 
-    flex: 1, 
-    color: '#f8fafc',
-    fontSize: 16,
-    paddingVertical: 12,
-    outlineStyle: 'none' // For Web
-  },
-  priceFilter: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'space-between' 
-  },
-  priceInputWrapper: {
+  searchInput: {
     flex: 1,
+    color: '#f8fafc',
+    fontSize: 14,
+    height: '100%',
+    outlineStyle: 'none',
+  },
+  priceFilter: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    justifyContent: 'space-between',
+  },
+  priceInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(30, 41, 59, 0.7)',
     borderRadius: 12,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
+    height: 40,
+    flex: 1,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.05)',
   },
@@ -363,10 +356,12 @@ const styles = StyleSheet.create({
   },
   // Efek hover untuk web (React Native standar tak dukung langsung di StyleSheet, tapi box-shadow/transition bisa)
   imageContainer: {
-    position: 'relative',
     width: '100%',
-    aspectRatio: 1, // Persegi
-    backgroundColor: 'rgba(15, 23, 42, 0.5)',
+    aspectRatio: 4/3, // Lebih proporsional dan tidak memakan banyak ruang vertikal
+    backgroundColor: '#1e293b',
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
+    overflow: 'hidden',
   },
   image: { 
     width: '100%', 
@@ -389,17 +384,17 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   cardBody: {
-    padding: 15,
+    padding: 10,
   },
   name: { 
-    fontSize: 14, 
+    fontSize: 13, 
     fontWeight: '600', 
     color: '#e2e8f0', 
-    marginBottom: 6,
-    lineHeight: 20,
+    marginBottom: 4,
+    lineHeight: 18,
   },
   price: { 
-    fontSize: 16, 
+    fontSize: 14, 
     color: '#34d399', 
     fontWeight: '800' 
   },
