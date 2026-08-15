@@ -7,8 +7,8 @@ require_once '../config.php';
 // Menangkap parameter GET
 $search = isset($_GET['search']) ? $conn->real_escape_string($_GET['search']) : '';
 $kategori = isset($_GET['kategori']) ? $conn->real_escape_string($_GET['kategori']) : '';
-$min_price = isset($_GET['min_price']) ? (float)$_GET['min_price'] : 0;
-$max_price = isset($_GET['max_price']) ? (float)$_GET['max_price'] : 0;
+$min_price = isset($_GET['minprice']) ? (float)$_GET['minprice'] : (isset($_GET['min_price']) ? (float)$_GET['min_price'] : 0);
+$max_price = isset($_GET['maxprice']) ? (float)$_GET['maxprice'] : (isset($_GET['max_price']) ? (float)$_GET['max_price'] : 0);
 
 // Parameter Paginasi
 $page = isset($_GET['page']) && (int)$_GET['page'] > 0 ? (int)$_GET['page'] : 1;
