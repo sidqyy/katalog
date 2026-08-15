@@ -4,18 +4,24 @@ header("Content-Type: application/json; charset=UTF-8");
 
 require_once '../config.php';
 
-// Menangkap parameter GET atau PATH INFO
-$search = isset($_GET['search']) ? $conn->real_escape_string($_GET['search']) : '';
+// Menangkap parameter GET atau PATH INFO atau POST JSON
+$inputJSON = file_get_contents('php://input');
+$input = json_decode($inputJSON, TRUE);
+
+$search = isset($_GET['search']) ? $_GET['search'] : (isset($input['search']) ? $input['search'] : '');
 if (empty($search) && isset($_SERVER['PATH_INFO'])) {
     $path = trim($_SERVER['PATH_INFO'], '/');
     if (!empty($path)) {
-        $search = $conn->real_escape_string($path);
+        $search = $path;
     }
 }
+$search = $conn->real_escape_string($search);
 
-$kategori = isset($_GET['kategori']) ? $conn->real_escape_string($_GET['kategori']) : '';
-$min_price = isset($_GET['minprice']) ? (float)$_GET['minprice'] : (isset($_GET['min_price']) ? (float)$_GET['min_price'] : 0);
-$max_price = isset($_GET['maxprice']) ? (float)$_GET['maxprice'] : (isset($_GET['max_price']) ? (float)$_GET['max_price'] : 0);
+$kategori = isset($_GET['kategori']) ? $_GET['kategori'] : (isset($input['kategori']) ? $input['kategori'] : '');
+$kategori = $conn->real_escape_string($kategori);
+
+$min_price = isset($_GET['minprice']) ? (float)$_GET['minprice'] : (isset($_GET['min_price']) ? (float)$_GET['min_price'] : (isset($input['minprice']) ? (float)$input['minprice'] : 0));
+$max_price = isset($_GET['maxprice']) ? (float)$_GET['maxprice'] : (isset($_GET['max_price']) ? (float)$_GET['max_price'] : (isset($input['maxprice']) ? (float)$input['maxprice'] : 0));
 
 // Parameter Paginasi
 $page = isset($_GET['page']) && (int)$_GET['page'] > 0 ? (int)$_GET['page'] : 1;
