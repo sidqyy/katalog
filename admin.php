@@ -653,6 +653,40 @@ if ($is_logged_in) {
                         </div>
                         
                     </div>
+                    
+                    <div class="card" style="margin-top: 1rem;">
+                        <div class="card-header"><h3 class="card-title">📋 Daftar Kategori Saat Ini</h3></div>
+                        <div class="table-responsive">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th style="width: 80px;">ID</th>
+                                        <th>Nama Kategori</th>
+                                        <th style="width: 100px; text-align: center;">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php if (count($kategori_list) > 0): ?>
+                                        <?php foreach($kategori_list as $kat): ?>
+                                        <tr>
+                                            <td>#<?= htmlspecialchars($kat['id']) ?></td>
+                                            <td><span class="badge badge-active" style="font-size: 0.85rem; padding: 0.4rem 0.8rem;"><?= htmlspecialchars($kat['nama_kategori']) ?></span></td>
+                                            <td style="text-align: center;">
+                                                <form method="POST" style="display:inline;" onsubmit="return confirm('Yakin ingin menghapus kategori ini secara permanen?')">
+                                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+                                                    <input type="hidden" name="id_hapus_kategori" value="<?= htmlspecialchars($kat['id']) ?>">
+                                                    <button type="submit" name="hapus_kategori_btn" class="btn btn-danger btn-sm">🗑️ Hapus</button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <tr><td colspan="3" style="text-align: center; padding: 2rem; color: var(--text-muted);">Belum ada kategori yang ditambahkan.</td></tr>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
 
                 <?php if($admin_role === 'superadmin'): ?>
