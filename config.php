@@ -5,6 +5,7 @@ $user = "root";
 $pass = ""; 
 $db   = "katalog_db";
 
+mysqli_report(MYSQLI_REPORT_OFF); // Matikan exception otomatis PHP 8+ agar tidak error 500
 $conn = new mysqli($host, $user, $pass, $db);
 
 if ($conn->connect_error) {
