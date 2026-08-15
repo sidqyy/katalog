@@ -318,7 +318,8 @@ if ($is_logged_in) {
             --text-main: #f8fafc; --text-muted: #94a3b8; --danger: #ef4444; --success: #10b981; --warning: #f59e0b;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Outfit', sans-serif; }
-        body { background: var(--bg-color); color: var(--text-main); height: 100vh; overflow: hidden; font-size: 14px; }
+        html { font-size: 13px; }
+        body { background: var(--bg-color); color: var(--text-main); height: 100vh; overflow: hidden; }
         
         .login-wrapper { display: flex; justify-content: center; align-items: center; height: 100vh; background-image: radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.15), transparent 50%); }
         .login-card { background: var(--surface); border: 1px solid var(--surface-border); border-radius: 1.5rem; padding: 2.5rem; width: 100%; max-width: 400px; text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
