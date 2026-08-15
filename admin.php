@@ -499,8 +499,16 @@ if ($is_logged_in) {
                                 <tbody>
                                     <?php if ($result->num_rows > 0): ?>
                                         <?php while($row = $result->fetch_assoc()): ?>
+                                            <?php
+                                            $link_gambar = $row['link_gambar'];
+                                            if (strpos($link_gambar, 'localhost') !== false || strpos($link_gambar, '127.0.0.1') !== false) {
+                                                $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https://' : 'http://';
+                                                $current_host = $protocol . $_SERVER['HTTP_HOST'];
+                                                $link_gambar = preg_replace('#^https?://(localhost|127\.0\.0\.1)(:\d+)?#', $current_host, $link_gambar);
+                                            }
+                                            ?>
                                             <tr class="product-row">
-                                                <td><img src="<?= htmlspecialchars($row['link_gambar']) ?>" alt="img" class="img-preview" onerror="this.src='https://via.placeholder.com/60'"></td>
+                                                <td><img src="<?= htmlspecialchars($link_gambar) ?>" alt="img" class="img-preview" onerror="this.src='https://via.placeholder.com/60'"></td>
                                                 <td>
                                                     <strong class="product-name"><?= htmlspecialchars($row['nama_produk']) ?></strong><br>
                                                     <span style="color: var(--text-muted); font-size: 0.85rem;"><?= htmlspecialchars($row['kategori']) ?></span>
