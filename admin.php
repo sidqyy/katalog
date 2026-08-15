@@ -566,47 +566,58 @@ if ($is_logged_in) {
                             <input type="hidden" name="id_produk" id="inputId">
                             <input type="hidden" name="gambar_lama" id="inputGambarLama">
 
-                            <div class="form-group">
-                                <label>Nama Produk</label>
-                                <input type="text" name="nama_produk" id="inputNama" required placeholder="Mis: Jaket Parasut">
-                            </div>
-                            <div class="form-group">
-                                <label>Kategori</label>
-                                <select name="kategori" id="inputKategori" required style="cursor: pointer; appearance: none;">
-                                    <option value="" disabled selected>Pilih Kategori</option>
-                                    <?php foreach($kategori_list as $kat): ?>
-                                        <option value="<?= htmlspecialchars($kat['nama_kategori']) ?>"><?= htmlspecialchars($kat['nama_kategori']) ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Harga (Rp)</label>
-                                <input type="number" name="harga" id="inputHarga" required placeholder="Mis: 150000">
-                            </div>
-                            <div class="form-group">
-                                <label>Status Visibilitas</label>
-                                <select name="status" id="inputStatus" required style="cursor: pointer; appearance: none;">
-                                    <option value="1">Tersedia (Tampil di Aplikasi)</option>
-                                    <option value="0">Habis / Sembunyikan</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Upload Gambar <span style="font-size: 0.8em; color: var(--warning);">(Abaikan jika tidak ingin mengubah gambar)</span></label>
-                                <input type="file" name="gambar" accept="image/*" id="inputGambarUpload" onchange="previewUploadImage(event)">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+                                <!-- Kolom Kiri -->
+                                <div>
+                                    <div class="form-group">
+                                        <label>Nama Produk</label>
+                                        <input type="text" name="nama_produk" id="inputNama" required placeholder="Mis: Jaket Parasut">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Kategori</label>
+                                        <select name="kategori" id="inputKategori" required style="cursor: pointer; appearance: none;">
+                                            <option value="" disabled selected>Pilih Kategori</option>
+                                            <?php foreach($kategori_list as $kat): ?>
+                                                <option value="<?= htmlspecialchars($kat['nama_kategori']) ?>"><?= htmlspecialchars($kat['nama_kategori']) ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Harga (Rp)</label>
+                                        <input type="number" name="harga" id="inputHarga" required placeholder="Mis: 150000">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Status Visibilitas</label>
+                                        <select name="status" id="inputStatus" required style="cursor: pointer; appearance: none;">
+                                            <option value="1">Tersedia (Tampil di Aplikasi)</option>
+                                            <option value="0">Habis / Sembunyikan</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <!-- Kolom Kanan -->
+                                <div>
+                                    <div class="form-group">
+                                        <label>Deskripsi Singkat</label>
+                                        <textarea name="deskripsi" id="inputDeskripsi" required placeholder="Deskripsi produk..." style="min-height: 90px;"></textarea>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Upload Gambar <span style="font-size: 0.8em; color: var(--warning);">(Abaikan jika tidak ubah)</span></label>
+                                        <input type="file" name="gambar" accept="image/*" id="inputGambarUpload" onchange="previewUploadImage(event)">
+                                    </div>
+                                    
+                                    <!-- Container Preview Gambar -->
+                                    <div class="form-group" id="previewGambarContainer" style="display: none; text-align: center; background: rgba(0,0,0,0.2); padding: 0.75rem; border-radius: 0.5rem; border: 1px dashed var(--surface-border);">
+                                        <label style="margin-bottom: 0.5rem;">Preview Gambar:</label>
+                                        <img id="imagePreview" alt="Preview" style="display: none; max-width: 100%; max-height: 150px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); margin: 0 auto;">
+                                    </div>
+                                </div>
                             </div>
                             
-                            <!-- Container Preview Gambar -->
-                            <div class="form-group" id="previewGambarContainer" style="display: none; text-align: center; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 0.5rem; border: 1px dashed var(--surface-border);">
-                                <label style="margin-bottom: 1rem;">Preview Gambar:</label>
-                                <img id="imagePreview" alt="Preview" style="display: none; max-width: 100%; max-height: 250px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+                            <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                                <button type="submit" name="simpan" class="btn btn-primary" id="btnSubmit" style="flex: 1;">Simpan Produk</button>
+                                <button type="button" class="btn btn-cancel" id="btnCancel" onclick="resetForm()" style="flex: 1;">Batal Edit (Buat Baru)</button>
                             </div>
-                            <div class="form-group">
-                                <label>Deskripsi Singkat</label>
-                                <textarea name="deskripsi" id="inputDeskripsi" required placeholder="Deskripsi produk..."></textarea>
-                            </div>
-                            
-                            <button type="submit" name="simpan" class="btn btn-primary" id="btnSubmit" style="width: 100%;">Simpan Produk</button>
-                            <button type="button" class="btn btn-cancel" id="btnCancel" onclick="resetForm()">Batal Edit (Buat Baru)</button>
                         </form>
                     </div>
                 </div>
