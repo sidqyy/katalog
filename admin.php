@@ -597,7 +597,7 @@ if ($is_logged_in) {
                             <!-- Container Preview Gambar -->
                             <div class="form-group" id="previewGambarContainer" style="display: none; text-align: center; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 0.5rem; border: 1px dashed var(--surface-border);">
                                 <label style="margin-bottom: 1rem;">Preview Gambar:</label>
-                                <img id="imagePreview" src="" alt="Preview" style="max-width: 100%; max-height: 250px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+                                <img id="imagePreview" alt="Preview" style="display: none; max-width: 100%; max-height: 250px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
                             </div>
                             <div class="form-group">
                                 <label>Deskripsi Singkat</label>
@@ -775,7 +775,9 @@ if ($is_logged_in) {
             
             // Atur preview gambar dengan gambar lama yang ada di database
             document.getElementById('inputGambarLama').value = link_gambar;
-            document.getElementById('imagePreview').src = link_gambar;
+            var output = document.getElementById('imagePreview');
+            output.src = link_gambar;
+            output.style.display = 'block';
             document.getElementById('previewGambarContainer').style.display = 'block';
             
             document.getElementById('btnSubmit').innerHTML = 'Update Produk Data';
@@ -830,6 +832,7 @@ if ($is_logged_in) {
                 var dataURL = reader.result;
                 var output = document.getElementById('imagePreview');
                 output.src = dataURL;
+                output.style.display = 'block';
                 document.getElementById('previewGambarContainer').style.display = 'block';
             };
             
