@@ -23,7 +23,7 @@ export default function ProductDetailScreen({ route, navigation }) {
   }, []);
 
   const handleOrderWhatsApp = (phoneNumber) => {
-    const message = `Halo Admin, saya tertarik untuk memesan produk ini:\n\nNama Produk: ${product.nama}\nHarga: Rp ${product.harga.toLocaleString('id-ID')}\n\nApakah barang ini masih tersedia?`;
+    const message = `Halo Admin, saya ingin memesan produk berikut:\n\nNama Produk: ${product.nama}\nHarga: Rp ${product.harga.toLocaleString('id-ID')}\nGambar: ${product.link_gambar}\n\nMohon info untuk proses selanjutnya. Terima kasih.`;
     const url = `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`;
     
     Linking.canOpenURL(url)
