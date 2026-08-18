@@ -18,10 +18,20 @@ const DarkThemeConfig = {
   },
 };
 
+const linking = {
+  prefixes: ['https://katalog.jsflorist.com', 'http://localhost', 'katalog://'],
+  config: {
+    screens: {
+      Home: '',
+      ProductDetail: 'product/:id',
+    },
+  },
+};
+
 export default function App() {
   return (
     <View style={{ flex: 1, backgroundColor: '#0f172a' }}>
-      <NavigationContainer theme={DarkThemeConfig}>
+      <NavigationContainer theme={DarkThemeConfig} linking={linking}>
         <Stack.Navigator 
           initialRouteName="Home"
           screenOptions={{

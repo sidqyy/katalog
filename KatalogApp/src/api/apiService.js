@@ -31,6 +31,28 @@ export const fetchProducts = async (search = '', minPrice = '', maxPrice = '', k
   }
 };
 
+export const fetchProductById = async (id) => {
+  try {
+    const url = `${BASE_URL}?id=${id}`;
+    const response = await fetch(url);
+    const json = await response.json();
+    
+    if (json.status === 'success' && json.data.length > 0) {
+      const IP = '192.168.100.194';
+      const item = json.data[0];
+      return {
+        ...item,
+        link_gambar: item.link_gambar ? item.link_gambar.replace('localhost', IP).replace('127.0.0.1', IP) : item.link_gambar
+      };
+    } else {
+      throw new Error("Gagal mengambil data produk");
+    }
+  } catch (error) {
+    console.error("Fetch Product By Id Error: ", error);
+    return null;
+  }
+};
+
 export const fetchCategories = async () => {
   try {
     const url = `${BASE_URL.replace('api_produk.php', 'api_kategori.php')}`;

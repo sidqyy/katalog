@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, Linking, Platform } from 'react-native';
-import { fetchSettings } from '../api/apiService';
+import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, Linking, Platform, ActivityIndicator } from 'react-native';
+import { fetchSettings, fetchProductById } from '../api/apiService';
 
 export default function ProductDetailScreen({ route, navigation }) {
-  const { product } = route.params;
+  const { product: initialProduct, id } = route.params || {};
+
+  const [product, setProduct] = useState(initialProduct || null);
+  const [loading, setLoading] = useState(!initialProduct);
 
   const [waSettings, setWaSettings] = useState({
     wa1_name: 'Poppy Florist',
@@ -13,17 +16,38 @@ export default function ProductDetailScreen({ route, navigation }) {
   });
 
   useEffect(() => {
-    const loadSettings = async () => {
+    const loadData = async () => {
+      if (!initialProduct && id) {
+        const fetchedProduct = await fetchProductById(id);
+        if (fetchedProduct) {
+          setProduct(fetchedProduct);
+        } else {
+          alert('Produk tidak ditemukan');
+          navigation.navigate('Home');
+        }
+        setLoading(false);
+      }
+
       const settings = await fetchSettings();
       if (settings) {
         setWaSettings(settings);
       }
     };
-    loadSettings();
-  }, []);
+    loadData();
+  }, [id, initialProduct]);
+
+  if (loading || !product) {
+    return (
+      <View style={[styles.mainContainer, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#38bdf8" />
+        <Text style={{ color: '#94a3b8', marginTop: 10 }}>Memuat detail produk...</Text>
+      </View>
+    );
+  }
 
   const handleOrderWhatsApp = (phoneNumber) => {
-    const message = `Halo Admin, saya ingin memesan produk berikut:\n\nNama Produk: ${product.nama}\nHarga: Rp ${product.harga.toLocaleString('id-ID')}\nGambar: ${product.link_gambar}\n\nMohon info untuk proses selanjutnya. Terima kasih.`;
+    const productLink = `https://katalog.jsflorist.com/product/${product.id}`;
+    const message = `Halo Admin, saya ingin memesan produk berikut:\n\nNama Produk: ${product.nama}\nHarga: Rp ${product.harga.toLocaleString('id-ID')}\nLink Produk: ${productLink}\n\nMohon info untuk proses selanjutnya. Terima kasih.`;
     const url = `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`;
     
     Linking.canOpenURL(url)

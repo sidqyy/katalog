@@ -17,6 +17,8 @@ if (empty($search) && isset($_SERVER['PATH_INFO'])) {
 }
 $search = $conn->real_escape_string($search);
 
+$id = isset($_GET['id']) ? (int)$_GET['id'] : (isset($input['id']) ? (int)$input['id'] : 0);
+
 $kategori = isset($_GET['kategori']) ? $_GET['kategori'] : (isset($input['kategori']) ? $input['kategori'] : '');
 $kategori = $conn->real_escape_string($kategori);
 
@@ -33,25 +35,31 @@ $query = "SELECT id, nama_produk, harga, deskripsi, link_gambar FROM products WH
 $params = [];
 $types = "";
 
-if (!empty($search)) {
-    $query .= " AND nama_produk LIKE ?";
-    $params[] = "%$search%";
-    $types .= "s";
-}
-if (!empty($kategori)) {
-    $query .= " AND kategori = ?";
-    $params[] = $kategori;
-    $types .= "s";
-}
-if ($min_price > 0) {
-    $query .= " AND harga >= ?";
-    $params[] = $min_price;
-    $types .= "d";
-}
-if ($max_price > 0) {
-    $query .= " AND harga <= ?";
-    $params[] = $max_price;
-    $types .= "d";
+if ($id > 0) {
+    $query .= " AND id = ?";
+    $params[] = $id;
+    $types .= "i";
+} else {
+    if (!empty($search)) {
+        $query .= " AND nama_produk LIKE ?";
+        $params[] = "%$search%";
+        $types .= "s";
+    }
+    if (!empty($kategori)) {
+        $query .= " AND kategori = ?";
+        $params[] = $kategori;
+        $types .= "s";
+    }
+    if ($min_price > 0) {
+        $query .= " AND harga >= ?";
+        $params[] = $min_price;
+        $types .= "d";
+    }
+    if ($max_price > 0) {
+        $query .= " AND harga <= ?";
+        $params[] = $max_price;
+        $types .= "d";
+    }
 }
 
 $query .= " ORDER BY id DESC LIMIT ? OFFSET ?";
